@@ -87,7 +87,9 @@ func (m model) View() tea.View {
 	s += "\nPress q to quit.\n"
 
 	// Send the UI for rendering
-	return tea.NewView(s)
+	v := tea.NewView(s)
+	v.AltScreen = true
+	return v
 }
 
 func initialModel() model {
