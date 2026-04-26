@@ -20,7 +20,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+d":
 			return m, tea.Quit
 		}
 	}
@@ -88,14 +88,13 @@ func (m MainViewModel) View() tea.View {
 
 	subtitle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#888")).
-		MarginTop(1).
 		Render("v0.1.0")
 
 	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle)
 
 	header := lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
 
-	s := header + "\n\nPress q to quit.\n"
+	s := header + "\n\nPress ctrl+d to quit.\n"
 
 	v := tea.NewView(s)
 	v.AltScreen = true
