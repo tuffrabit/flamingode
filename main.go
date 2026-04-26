@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
 )
@@ -20,21 +22,53 @@ func getVersion() string {
 }
 
 type MainViewModel struct {
+	ready     bool
+	viewport  viewport.Model
+	textInput textinput.Model
 }
 
 func (m MainViewModel) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+d":
 			return m, tea.Quit
 		}
+
+	case tea.WindowSizeMsg:
+		headerHeight := lipgloss.Height(m.headerView())
+		textInputHeight := lipgloss.Height(m.textInput.View())
+		verticalMarginHeight := headerHeight + textInputHeight
+
+		if !m.ready {
+			m.viewport = viewport.New(
+				viewport.WithWidth(msg.Width),
+				viewport.WithHeight(msg.Height-verticalMarginHeight),
+			)
+			m.viewport.YPosition = headerHeight
+			m.ready = true
+		} else {
+			m.viewport.SetWidth(msg.Width)
+			m.viewport.SetHeight(msg.Height - verticalMarginHeight)
+		}
 	}
-	return m, nil
+
+	m.viewport, cmd = m.viewport.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.textInput, cmd = m.textInput.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func renderPixelArt(rows []string) string {
@@ -67,7 +101,7 @@ func renderPixelArt(rows []string) string {
 	return strings.Join(renderedRows, "\n")
 }
 
-func (m MainViewModel) View() tea.View {
+func (m MainViewModel) headerView() string {
 	flamingoRows := []string{
 		"     pbp      ",
 		"   bopppp     ",
@@ -102,17 +136,45 @@ func (m MainViewModel) View() tea.View {
 
 	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle)
 
-	header := lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
+	return lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
+}
 
-	s := header + "\n\nPress ctrl+d to quit.\n"
+func (m MainViewModel) View() tea.View {
+	var c *tea.Cursor
+	if !m.textInput.VirtualCursor() {
+		c = m.textInput.Cursor()
+		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height()
+	}
 
-	v := tea.NewView(s)
+	var content string
+	if !m.ready {
+		content = m.headerView() + "\n\n Initializing..."
+	} else {
+		content = lipgloss.JoinVertical(
+			lipgloss.Top,
+			m.headerView(),
+			m.viewport.View(),
+			m.textInput.View(),
+		)
+	}
+
+	v := tea.NewView(content)
 	v.AltScreen = true
+	v.Cursor = c
 	return v
 }
 
 func initialMainViewModel() MainViewModel {
-	return MainViewModel{}
+	ti := textinput.New()
+	ti.Placeholder = "Type a message..."
+	ti.SetVirtualCursor(false)
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.SetWidth(50)
+
+	return MainViewModel{
+		textInput: ti,
+	}
 }
 
 func main() {
