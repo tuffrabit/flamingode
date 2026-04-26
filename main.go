@@ -9,6 +9,16 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 )
 
+var Version string
+
+func getVersion() string {
+	if Version != "" {
+		return Version
+	}
+
+	return "dev"
+}
+
 type MainViewModel struct {
 }
 
@@ -88,7 +98,7 @@ func (m MainViewModel) View() tea.View {
 
 	subtitle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#888")).
-		Render("v0.1.0")
+		Render(getVersion())
 
 	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle)
 
