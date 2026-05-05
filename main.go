@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/tuffrabit/flamingode/internal/config"
 )
 
 var Version string
@@ -178,6 +180,11 @@ func initialMainViewModel() MainViewModel {
 }
 
 func main() {
+	_, err := config.Load()
+	if err != nil {
+		log.Fatalln("Failed to load config, error:", err)
+	}
+
 	p := tea.NewProgram(initialMainViewModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
