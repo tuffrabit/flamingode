@@ -135,12 +135,13 @@ type FunctionDefinition struct {
 
 // ChatCompletionMessage is a message in the request conversation.
 type ChatCompletionMessage struct {
-	Role         string        `json:"role"`
-	Content      string        `json:"-"`
-	ContentParts []ContentPart `json:"-"`
-	Name         string        `json:"name,omitempty"`
-	ToolCalls    []ToolCall    `json:"tool_calls,omitempty"`
-	ToolCallID   string        `json:"tool_call_id,omitempty"`
+	Role             string        `json:"role"`
+	Content          string        `json:"-"`
+	ContentParts     []ContentPart `json:"-"`
+	ReasoningContent string        `json:"-"`
+	Name             string        `json:"name,omitempty"`
+	ToolCalls        []ToolCall    `json:"tool_calls,omitempty"`
+	ToolCallID       string        `json:"tool_call_id,omitempty"`
 }
 
 // MarshalJSON implements custom marshalling so Content can be either a string
@@ -299,10 +300,11 @@ type ChunkChoice struct {
 
 // Delta is the incremental message content in a stream chunk.
 type Delta struct {
-	Role       string     `json:"role,omitempty"`
-	Content    string     `json:"content,omitempty"`
-	Refusal    string     `json:"refusal,omitempty"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	Role             string     `json:"role,omitempty"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"`
+	Refusal          string     `json:"refusal,omitempty"`
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
 }
 
 // ChatCompletionDeleted is the response when deleting a completion.

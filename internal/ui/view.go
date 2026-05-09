@@ -13,21 +13,36 @@ func (m MainViewModel) renderChat() string {
 	if wrapWidth <= 0 {
 		wrapWidth = 80
 	}
+	thinkingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
 	var b strings.Builder
 	for _, msg := range m.messages {
+		if msg.Role == "system" {
+			continue
+		}
 		prefix := "You: "
 		if msg.Role == "assistant" {
 			prefix = "Assistant: "
-		} else if msg.Role == "system" {
-			continue
+			if msg.ReasoningContent != "" {
+				thinkingLine := "Thinking: " + msg.ReasoningContent
+				b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
+				b.WriteString("\n\n")
+			}
 		}
 		line := prefix + msg.Content
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 		b.WriteString("\n\n")
 	}
-	if m.streaming || m.pending != "" {
+	if m.streaming || m.pending != "" || m.pendingThinking != "" {
+		if m.pendingThinking != "" {
+			thinkingLine := "Thinking: " + m.pendingThinking
+			if m.streaming && m.pending == "" {
+				thinkingLine += "█"
+			}
+			b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
+			b.WriteString("\n\n")
+		}
 		line := "Assistant: " + m.pending
-		if m.streaming {
+		if m.streaming && m.pending != "" {
 			line += "█"
 		}
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))

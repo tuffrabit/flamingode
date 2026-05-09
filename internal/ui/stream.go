@@ -9,10 +9,11 @@ import (
 )
 
 type streamMsg struct {
-	chunk  string
-	done   bool
-	err    error
-	stream *apiclient.ChatCompletionStream
+	chunk         string
+	thinkingChunk string
+	done          bool
+	err           error
+	stream        *apiclient.ChatCompletionStream
 }
 
 func (m MainViewModel) startStream() tea.Cmd {
@@ -41,10 +42,11 @@ func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cm
 			_ = stream.Close()
 			return streamMsg{err: err}
 		}
-		var content string
+		var content, thinking string
 		if len(chunk.Choices) > 0 {
 			content = chunk.Choices[0].Delta.Content
+			thinking = chunk.Choices[0].Delta.ReasoningContent
 		}
-		return streamMsg{chunk: content, stream: stream}
+		return streamMsg{chunk: content, thinkingChunk: thinking, stream: stream}
 	}
 }

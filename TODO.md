@@ -12,7 +12,6 @@
 - spinner while performing action
 - default system prompt with project level preference
 - cli args
-- display streaming response thinking sections
 - display tool calls
 - token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs

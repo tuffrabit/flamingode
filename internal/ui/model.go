@@ -20,9 +20,10 @@ type MainViewModel struct {
 	client       *apiclient.Client
 	modelID      string
 	status       string
-	messages     []apiclient.ChatCompletionMessage
-	pending      string
-	streaming    bool
+	messages      []apiclient.ChatCompletionMessage
+	pending       string
+	pendingThinking string
+	streaming     bool
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -51,6 +52,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textInput.SetValue("")
 			m.messages = append(m.messages, apiclient.NewTextMessage("user", input))
 			m.pending = ""
+			m.pendingThinking = ""
 			m.streaming = true
 			cmds = append(cmds, m.startStream())
 		}
@@ -85,19 +87,26 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.streaming = false
 			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", fmt.Sprintf("[error: %v]", msg.err)))
 			m.pending = ""
+			m.pendingThinking = ""
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
 			break
 		}
 		if msg.done {
 			m.streaming = false
-			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", m.pending))
+			m.messages = append(m.messages, apiclient.ChatCompletionMessage{
+				Role:             "assistant",
+				Content:          m.pending,
+				ReasoningContent: m.pendingThinking,
+			})
 			m.pending = ""
+			m.pendingThinking = ""
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
 			break
 		}
 		m.pending += msg.chunk
+		m.pendingThinking += msg.thinkingChunk
 		m.viewport.SetContent(m.renderChat())
 		m.viewport.GotoBottom()
 		cmds = append(cmds, m.readStream(msg.stream))
