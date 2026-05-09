@@ -12,6 +12,10 @@
 - screen scroll as content is added
 - spinner while performing action
 - default system prompt with project level preference
-- basic user input, send message, get response loop
 - cli args
-- default model
+- bug: user input horizontal scroll limit
+- display streaming responses
+- display streaming response thinking sections
+- token usage tracking
+- user input "up/down" arrow for navigating previously submitted user inputs
+- bug: word wrap on long responses

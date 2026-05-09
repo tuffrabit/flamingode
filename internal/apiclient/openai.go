@@ -31,9 +31,15 @@ func New(apiKey string) *Client {
 // The baseURL should include the API version path (e.g. https://api.openai.com/v1).
 func NewWithBaseURL(apiKey, baseURL string) *Client {
 	return &Client{
-		baseURL:    strings.TrimSuffix(baseURL, "/"),
-		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: 120 * time.Second},
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		apiKey:  apiKey,
+		httpClient: &http.Client{
+			// No Timeout here — it would cap the entire streaming response.
+			// Use context deadlines on individual requests instead.
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: 60 * time.Second,
+			},
+		},
 	}
 }
 
