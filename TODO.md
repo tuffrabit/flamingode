@@ -1,0 +1,15 @@
+- uuid named chat sessions that are stored and can be resumed
+- standardized tool call methodology
+- tool interface that allows new tools to be implemented easily
+- read file tool
+- write file tool
+- write partial file tool
+- list directory tool
+- grep tool
+- bash tool
+- permissions
+- include file with '@'
+- screen scroll as content is added
+- spinner while performing action
+- default system prompt with project level preference
+- basic user input, send message, get response loop
