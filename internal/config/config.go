@@ -11,6 +11,17 @@ import (
 type Config struct {
 	Providers    map[string]Provider `json:"providers"`
 	DefaultModel string              `json:"defaultModel,omitempty"`
+	Tools        ToolsConfig         `json:"tools,omitempty"`
+}
+
+// ToolsConfig holds configuration for individual tools.
+type ToolsConfig struct {
+	ReadFile ReadFileToolConfig `json:"read_file,omitempty"`
+}
+
+// ReadFileToolConfig holds configuration for the read_file tool.
+type ReadFileToolConfig struct {
+	MaxSize int64 `json:"max_size,omitempty"`
 }
 
 // Provider describes a custom inference endpoint.
@@ -53,6 +64,11 @@ func configPath() (string, error) {
 func defaultConfig() Config {
 	return Config{
 		Providers: map[string]Provider{},
+		Tools: ToolsConfig{
+			ReadFile: ReadFileToolConfig{
+				MaxSize: 100000,
+			},
+		},
 	}
 }
 

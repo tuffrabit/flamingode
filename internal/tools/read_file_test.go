@@ -64,12 +64,26 @@ func TestReadFile_RejectsBinary(t *testing.T) {
 
 func TestReadFile_RejectsOversized(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.WriteFile(filepath.Join(tmpDir, "huge.txt"), []byte(strings.Repeat("x", maxFileSize+1)), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "huge.txt"), []byte(strings.Repeat("x", defaultMaxFileSize+1)), 0644)
 
 	tool := &ReadFile{WorkingDir: tmpDir}
 	_, err := tool.GetAction()(context.Background(), `{"path":"huge.txt"}`)
 	if err == nil {
 		t.Fatal("expected error for oversized file, got nil")
+	}
+	if !strings.Contains(err.Error(), "maximum size") {
+		t.Fatalf("expected size limit error, got: %v", err)
+	}
+}
+
+func TestReadFile_CustomMaxSize(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, "medium.txt"), []byte(strings.Repeat("x", 500)), 0644)
+
+	tool := &ReadFile{WorkingDir: tmpDir, MaxSize: 400}
+	_, err := tool.GetAction()(context.Background(), `{"path":"medium.txt"}`)
+	if err == nil {
+		t.Fatal("expected error for oversized file with custom max, got nil")
 	}
 	if !strings.Contains(err.Error(), "maximum size") {
 		t.Fatalf("expected size limit error, got: %v", err)

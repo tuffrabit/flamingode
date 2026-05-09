@@ -11,12 +11,13 @@ import (
 	"unicode/utf8"
 )
 
-// maxFileSize is roughly 25k tokens (approximated at ~4 bytes per token).
-const maxFileSize = 100_000
+// defaultMaxFileSize is roughly 25k tokens (approximated at ~4 bytes per token).
+const defaultMaxFileSize = 100_000
 
 // ReadFile reads the contents of a text file within the working directory.
 type ReadFile struct {
 	WorkingDir string
+	MaxSize    int64
 }
 
 func (r *ReadFile) GetName() string {
@@ -93,8 +94,12 @@ func (r *ReadFile) GetAction() ToolAction {
 		}
 
 		// Enforce file size limit.
-		if info.Size() > maxFileSize {
-			return "", fmt.Errorf("file exceeds maximum size of %d bytes (~25k tokens)", maxFileSize)
+		maxSize := r.MaxSize
+		if maxSize <= 0 {
+			maxSize = defaultMaxFileSize
+		}
+		if info.Size() > maxSize {
+			return "", fmt.Errorf("file exceeds maximum size of %d bytes (~25k tokens)", maxSize)
 		}
 
 		// Read file contents.
@@ -114,7 +119,7 @@ func (r *ReadFile) GetAction() ToolAction {
 		}
 
 		scanner := bufio.NewScanner(strings.NewReader(string(b)))
-		scanner.Buffer(make([]byte, 1024), maxFileSize)
+		scanner.Buffer(make([]byte, 1024), int(maxSize))
 
 		currentLine := 1
 		var result strings.Builder

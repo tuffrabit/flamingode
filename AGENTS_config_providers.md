@@ -45,6 +45,21 @@ the providers section is a list of configured custom models. this is primarily t
         }
       ]
     }
+  },
+  "tools": {
+    "read_file": {
+      "max_size": 100000
+    }
   }
 }
 ```
+
+## tools
+
+tool-specific configuration lives under the `tools` key.
+
+### read_file
+
+| key | type | default | description |
+|-----|------|---------|-------------|
+| `max_size` | integer | `100000` | Maximum file size in bytes that read_file will allow. Defaults to 100000 bytes (~25k tokens). |
