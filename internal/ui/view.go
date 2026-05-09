@@ -21,12 +21,15 @@ func (m MainViewModel) renderChat() string {
 		}
 		prefix := "You: "
 		if msg.Role == "assistant" {
-			prefix = "Assistant: "
 			if msg.ReasoningContent != "" {
 				thinkingLine := "Thinking: " + msg.ReasoningContent
 				b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
 				b.WriteString("\n\n")
 			}
+			if msg.Content == "" && len(msg.ToolCalls) > 0 {
+				continue
+			}
+			prefix = "Assistant: "
 		} else if msg.Role == "tool" {
 			prefix = "Tool: "
 		}
