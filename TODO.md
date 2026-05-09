@@ -9,10 +9,11 @@
 - bash tool
 - permissions
 - include file with '@'
-- spinner while performing action
 - default system prompt with project level preference
 - cli args
 - display tool calls
 - token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs
 - slash commands
+- help/hints
+- refactor status bar up to the version area next to the avatar

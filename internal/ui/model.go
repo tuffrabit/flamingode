@@ -135,7 +135,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.streaming && m.pending == "" {
+	if m.streaming {
 		var spinCmd tea.Cmd
 		m.spinner, spinCmd = m.spinner.Update(msg)
 		cmds = append(cmds, spinCmd)

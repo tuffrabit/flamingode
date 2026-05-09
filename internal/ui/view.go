@@ -35,20 +35,24 @@ func (m MainViewModel) renderChat() string {
 	if m.streaming || m.pending != "" || m.pendingThinking != "" {
 		if m.pendingThinking != "" {
 			thinkingLine := "Thinking: " + m.pendingThinking
-			if m.streaming && m.pending == "" {
+			if m.streaming {
 				thinkingLine += "█"
 			}
 			b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
 			b.WriteString("\n\n")
 		}
-		if m.streaming && m.pending == "" {
-			b.WriteString(m.spinner.View())
-		} else {
+		if m.pending != "" || !m.streaming {
 			line := "Assistant: " + m.pending
 			if m.streaming && m.pending != "" {
 				line += "█"
 			}
 			b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
+		}
+		if m.streaming {
+			if m.pending != "" {
+				b.WriteString("\n")
+			}
+			b.WriteString(m.spinner.View())
 		}
 	}
 	return b.String()
