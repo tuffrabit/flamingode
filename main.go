@@ -260,7 +260,7 @@ func (m MainViewModel) View() tea.View {
 	var c *tea.Cursor
 	if !m.textInput.VirtualCursor() {
 		c = m.textInput.Cursor()
-		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height() + lipgloss.Height(m.statusView())
+		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height()
 	}
 
 	var content string
