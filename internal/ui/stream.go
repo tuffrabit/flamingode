@@ -14,6 +14,8 @@ type streamMsg struct {
 	done          bool
 	err           error
 	stream        *apiclient.ChatCompletionStream
+	toolCalls     []apiclient.ToolCall
+	finishReason  string
 }
 
 func (m MainViewModel) startStream() tea.Cmd {
@@ -22,6 +24,9 @@ func (m MainViewModel) startStream() tea.Cmd {
 			Model:    m.modelID,
 			Messages: m.messages,
 			Stream:   true,
+		}
+		if m.toolRegistry != nil {
+			req.Tools = m.toolRegistry.ToOpenAITools()
 		}
 		stream, err := m.client.CreateChatCompletionStream(context.Background(), req)
 		if err != nil {
@@ -42,11 +47,14 @@ func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cm
 			_ = stream.Close()
 			return streamMsg{err: err}
 		}
-		var content, thinking string
+		var content, thinking, finishReason string
+		var tcs []apiclient.ToolCall
 		if len(chunk.Choices) > 0 {
 			content = chunk.Choices[0].Delta.Content
 			thinking = chunk.Choices[0].Delta.ReasoningContent
+			tcs = chunk.Choices[0].Delta.ToolCalls
+			finishReason = chunk.Choices[0].FinishReason
 		}
-		return streamMsg{chunk: content, thinkingChunk: thinking, stream: stream}
+		return streamMsg{chunk: content, thinkingChunk: thinking, stream: stream, toolCalls: tcs, finishReason: finishReason}
 	}
 }

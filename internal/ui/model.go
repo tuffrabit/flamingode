@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,23 +11,26 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
+	"github.com/tuffrabit/flamingode/internal/tools"
 )
 
 type MainViewModel struct {
-	ready           bool
-	viewport        viewport.Model
-	textInput       textarea.Model
-	windowWidth     int
-	windowHeight    int
-	client          *apiclient.Client
-	modelID         string
-	status          string
-	workingDir      string
-	messages        []apiclient.ChatCompletionMessage
-	pending         string
-	pendingThinking string
-	streaming       bool
-	spinner         spinner.Model
+	ready            bool
+	viewport         viewport.Model
+	textInput        textarea.Model
+	windowWidth      int
+	windowHeight     int
+	client           *apiclient.Client
+	modelID          string
+	status           string
+	workingDir       string
+	messages         []apiclient.ChatCompletionMessage
+	pending          string
+	pendingThinking  string
+	streaming        bool
+	spinner          spinner.Model
+	toolRegistry     *tools.Registry
+	pendingToolCalls []apiclient.ToolCall
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -92,11 +96,35 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", fmt.Sprintf("[error: %v]", msg.err)))
 			m.pending = ""
 			m.pendingThinking = ""
+			m.pendingToolCalls = nil
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
 			break
 		}
 		if msg.done {
+			if len(m.pendingToolCalls) > 0 {
+				m.messages = append(m.messages, apiclient.ChatCompletionMessage{
+					Role:             "assistant",
+					Content:          m.pending,
+					ReasoningContent: m.pendingThinking,
+					ToolCalls:        m.pendingToolCalls,
+				})
+				for _, tc := range m.pendingToolCalls {
+					result, err := m.toolRegistry.ExecuteToolCall(context.Background(), tc)
+					if err != nil {
+						result = fmt.Sprintf("error: %v", err)
+					}
+					m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
+				}
+				m.pendingToolCalls = nil
+				m.pending = ""
+				m.pendingThinking = ""
+				m.streaming = true
+				cmds = append(cmds, m.startStream(), m.spinner.Tick)
+				m.viewport.SetContent(m.renderChat())
+				m.viewport.GotoBottom()
+				break
+			}
 			m.streaming = false
 			m.messages = append(m.messages, apiclient.ChatCompletionMessage{
 				Role:             "assistant",
@@ -111,6 +139,21 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.pending += msg.chunk
 		m.pendingThinking += msg.thinkingChunk
+		for _, tc := range msg.toolCalls {
+			if tc.Index >= len(m.pendingToolCalls) {
+				m.pendingToolCalls = append(m.pendingToolCalls, make([]apiclient.ToolCall, tc.Index-len(m.pendingToolCalls)+1)...)
+			}
+			if tc.ID != "" {
+				m.pendingToolCalls[tc.Index].ID = tc.ID
+			}
+			if tc.Type != "" {
+				m.pendingToolCalls[tc.Index].Type = tc.Type
+			}
+			if tc.Function.Name != "" {
+				m.pendingToolCalls[tc.Index].Function.Name = tc.Function.Name
+			}
+			m.pendingToolCalls[tc.Index].Function.Arguments += tc.Function.Arguments
+		}
 		m.viewport.SetContent(m.renderChat())
 		m.viewport.GotoBottom()
 		cmds = append(cmds, m.readStream(msg.stream))

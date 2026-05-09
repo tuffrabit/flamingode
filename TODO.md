@@ -2,7 +2,6 @@
 - read file tool
 - write file tool
 - write partial file tool
-- list directory tool
 - grep tool
 - bash tool
 - permissions
@@ -15,3 +14,4 @@
 - slash commands
 - help/hints
 - mcp's
+- request/response logging

@@ -27,6 +27,8 @@ func (m MainViewModel) renderChat() string {
 				b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
 				b.WriteString("\n\n")
 			}
+		} else if msg.Role == "tool" {
+			prefix = "Tool: "
 		}
 		line := prefix + msg.Content
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))

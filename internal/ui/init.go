@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
 	"github.com/tuffrabit/flamingode/internal/config"
+	"github.com/tuffrabit/flamingode/internal/tools"
 )
 
 func resolveModel(cfg config.Config) (*apiclient.Client, string, string) {
@@ -67,13 +68,17 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
 
+	r := tools.NewRegistry()
+	r.Register(&tools.ListDirectory{WorkingDir: wd})
+
 	return MainViewModel{
-		textInput:  ti,
-		client:     client,
-		modelID:    modelID,
-		status:     status,
-		workingDir: wd,
-		messages:   messages,
-		spinner:    s,
+		textInput:    ti,
+		client:       client,
+		modelID:      modelID,
+		status:       status,
+		workingDir:   wd,
+		messages:     messages,
+		spinner:      s,
+		toolRegistry: r,
 	}
 }
