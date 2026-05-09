@@ -1,6 +1,4 @@
 - uuid named chat sessions that are stored and can be resumed
-- standardized tool call methodology
-- tool interface that allows new tools to be implemented easily
 - read file tool
 - write file tool
 - write partial file tool
