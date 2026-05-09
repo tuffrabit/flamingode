@@ -3,7 +3,9 @@ package ui
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textarea"
+	"charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
 	"github.com/tuffrabit/flamingode/internal/config"
 )
@@ -58,11 +60,16 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 		apiclient.NewTextMessage("system", "You are a helpful agent"),
 	}
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
+
 	return MainViewModel{
 		textInput: ti,
 		client:    client,
 		modelID:   modelID,
 		status:    status,
 		messages:  messages,
+		spinner:   s,
 	}
 }

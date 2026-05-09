@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -12,18 +13,19 @@ import (
 )
 
 type MainViewModel struct {
-	ready        bool
-	viewport     viewport.Model
-	textInput    textarea.Model
-	windowWidth  int
-	windowHeight int
-	client       *apiclient.Client
-	modelID      string
-	status       string
-	messages      []apiclient.ChatCompletionMessage
-	pending       string
+	ready           bool
+	viewport        viewport.Model
+	textInput       textarea.Model
+	windowWidth     int
+	windowHeight    int
+	client          *apiclient.Client
+	modelID         string
+	status          string
+	messages        []apiclient.ChatCompletionMessage
+	pending         string
 	pendingThinking string
-	streaming     bool
+	streaming       bool
+	spinner         spinner.Model
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -54,7 +56,9 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pending = ""
 			m.pendingThinking = ""
 			m.streaming = true
-			cmds = append(cmds, m.startStream())
+			m.viewport.SetContent(m.renderChat())
+			m.viewport.GotoBottom()
+			cmds = append(cmds, m.startStream(), m.spinner.Tick)
 		}
 
 	case tea.WindowSizeMsg:
@@ -129,6 +133,14 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
 		}
+	}
+
+	if m.streaming && m.pending == "" && m.pendingThinking == "" {
+		var spinCmd tea.Cmd
+		m.spinner, spinCmd = m.spinner.Update(msg)
+		cmds = append(cmds, spinCmd)
+		m.viewport.SetContent(m.renderChat())
+		m.viewport.GotoBottom()
 	}
 
 	return m, tea.Batch(cmds...)

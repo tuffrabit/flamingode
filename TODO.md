@@ -15,3 +15,4 @@
 - display tool calls
 - token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs
+- slash commands

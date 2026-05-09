@@ -32,7 +32,9 @@ func (m MainViewModel) renderChat() string {
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 		b.WriteString("\n\n")
 	}
-	if m.streaming || m.pending != "" || m.pendingThinking != "" {
+	if m.streaming && m.pending == "" && m.pendingThinking == "" {
+		b.WriteString(m.spinner.View())
+	} else if m.streaming || m.pending != "" || m.pendingThinking != "" {
 		if m.pendingThinking != "" {
 			thinkingLine := "Thinking: " + m.pendingThinking
 			if m.streaming && m.pending == "" {
