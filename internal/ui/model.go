@@ -69,8 +69,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		headerHeight := lipgloss.Height(m.headerView())
 		textInputHeight := lipgloss.Height(m.textInput.View())
-		statusHeight := lipgloss.Height(m.statusView())
-		verticalMarginHeight := headerHeight + textInputHeight + statusHeight
+		verticalMarginHeight := headerHeight + textInputHeight
 
 		if !m.ready {
 			m.viewport = viewport.New(
@@ -125,8 +124,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.ready {
 		headerHeight := lipgloss.Height(m.headerView())
 		textInputHeight := lipgloss.Height(m.textInput.View())
-		statusHeight := lipgloss.Height(m.statusView())
-		verticalMarginHeight := headerHeight + textInputHeight + statusHeight
+		verticalMarginHeight := headerHeight + textInputHeight
 		newViewportHeight := m.windowHeight - verticalMarginHeight
 		if newViewportHeight > 0 && newViewportHeight != m.viewport.Height() {
 			m.viewport.SetHeight(newViewportHeight)
@@ -162,7 +160,6 @@ func (m MainViewModel) View() tea.View {
 			m.headerView(),
 			m.viewport.View(),
 			m.textInput.View(),
-			m.statusView(),
 		)
 	}
 
