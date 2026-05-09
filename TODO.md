@@ -14,4 +14,3 @@
 - help/hints
 - mcp's
 - request/response logging
-- list dir bug
