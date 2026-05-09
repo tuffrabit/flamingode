@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/tuffrabit/flamingode/internal/apiclient"
 	"github.com/tuffrabit/flamingode/internal/config"
 )
 
@@ -19,14 +22,25 @@ func getVersion() string {
 	if Version != "" {
 		return Version
 	}
-
 	return "dev"
+}
+
+type streamMsg struct {
+	chunk  string
+	done   bool
+	err    error
+	stream *apiclient.ChatCompletionStream
 }
 
 type MainViewModel struct {
 	ready     bool
 	viewport  viewport.Model
 	textInput textinput.Model
+	client    *apiclient.Client
+	modelID   string
+	messages  []apiclient.ChatCompletionMessage
+	pending   string
+	streaming bool
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -44,6 +58,19 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+d":
 			return m, tea.Quit
+		case "enter":
+			if m.streaming {
+				break
+			}
+			input := m.textInput.Value()
+			if strings.TrimSpace(input) == "" {
+				break
+			}
+			m.textInput.SetValue("")
+			m.messages = append(m.messages, apiclient.NewTextMessage("user", input))
+			m.pending = ""
+			m.streaming = true
+			cmds = append(cmds, m.startStream())
 		}
 
 	case tea.WindowSizeMsg:
@@ -62,6 +89,30 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetWidth(msg.Width)
 			m.viewport.SetHeight(msg.Height - verticalMarginHeight)
 		}
+		m.viewport.SetContent(m.renderChat())
+		m.viewport.GotoBottom()
+
+	case streamMsg:
+		if msg.err != nil {
+			m.streaming = false
+			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", fmt.Sprintf("[error: %v]", msg.err)))
+			m.pending = ""
+			m.viewport.SetContent(m.renderChat())
+			m.viewport.GotoBottom()
+			break
+		}
+		if msg.done {
+			m.streaming = false
+			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", m.pending))
+			m.pending = ""
+			m.viewport.SetContent(m.renderChat())
+			m.viewport.GotoBottom()
+			break
+		}
+		m.pending += msg.chunk
+		m.viewport.SetContent(m.renderChat())
+		m.viewport.GotoBottom()
+		cmds = append(cmds, m.readStream(msg.stream))
 	}
 
 	m.viewport, cmd = m.viewport.Update(msg)
@@ -71,6 +122,63 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m MainViewModel) renderChat() string {
+	var b strings.Builder
+	for _, msg := range m.messages {
+		prefix := "You: "
+		if msg.Role == "assistant" {
+			prefix = "Assistant: "
+		} else if msg.Role == "system" {
+			continue
+		}
+		b.WriteString(prefix)
+		b.WriteString(msg.Content)
+		b.WriteString("\n\n")
+	}
+	if m.streaming || m.pending != "" {
+		b.WriteString("Assistant: ")
+		b.WriteString(m.pending)
+		if m.streaming {
+			b.WriteString("█")
+		}
+	}
+	return b.String()
+}
+
+func (m MainViewModel) startStream() tea.Cmd {
+	return func() tea.Msg {
+		req := apiclient.ChatCompletionRequest{
+			Model:    m.modelID,
+			Messages: m.messages,
+			Stream:   true,
+		}
+		stream, err := m.client.CreateChatCompletionStream(context.Background(), req)
+		if err != nil {
+			return streamMsg{err: err}
+		}
+		return m.readStream(stream)()
+	}
+}
+
+func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cmd {
+	return func() tea.Msg {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			_ = stream.Close()
+			return streamMsg{done: true}
+		}
+		if err != nil {
+			_ = stream.Close()
+			return streamMsg{err: err}
+		}
+		var content string
+		if len(chunk.Choices) > 0 {
+			content = chunk.Choices[0].Delta.Content
+		}
+		return streamMsg{chunk: content, stream: stream}
+	}
 }
 
 func renderPixelArt(rows []string) string {
@@ -166,26 +274,43 @@ func (m MainViewModel) View() tea.View {
 	return v
 }
 
-func initialMainViewModel() MainViewModel {
+func initialMainViewModel(cfg config.Config) MainViewModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type a message..."
 	ti.SetVirtualCursor(false)
 	ti.Focus()
-	ti.CharLimit = 156
+	ti.CharLimit = 4096
 	ti.SetWidth(50)
+
+	var client *apiclient.Client
+	var modelID string
+	for _, provider := range cfg.Providers {
+		client = apiclient.NewWithBaseURL(provider.APIKey, provider.BaseURL)
+		if len(provider.Models) > 0 {
+			modelID = provider.Models[0].ID
+		}
+		break
+	}
+
+	messages := []apiclient.ChatCompletionMessage{
+		apiclient.NewTextMessage("system", "You are a helpful agent"),
+	}
 
 	return MainViewModel{
 		textInput: ti,
+		client:    client,
+		modelID:   modelID,
+		messages:  messages,
 	}
 }
 
 func main() {
-	_, err := config.Load()
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalln("Failed to load config, error:", err)
 	}
 
-	p := tea.NewProgram(initialMainViewModel())
+	p := tea.NewProgram(initialMainViewModel(cfg))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
