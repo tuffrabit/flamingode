@@ -70,6 +70,7 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 
 	r := tools.NewRegistry()
 	r.Register(&tools.ListDirectory{WorkingDir: wd})
+	r.Register(&tools.ReadFile{WorkingDir: wd})
 
 	return MainViewModel{
 		textInput:    ti,

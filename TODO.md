@@ -15,3 +15,4 @@
 - help/hints
 - mcp's
 - request/response logging
+- file read size limit in config, file read truncation message in tool description sent to llm, file read truncation warning included in tool call result
