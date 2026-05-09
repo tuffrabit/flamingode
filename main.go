@@ -38,6 +38,7 @@ type MainViewModel struct {
 	textInput textinput.Model
 	client    *apiclient.Client
 	modelID   string
+	status    string
 	messages  []apiclient.ChatCompletionMessage
 	pending   string
 	streaming bool
@@ -59,7 +60,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+d":
 			return m, tea.Quit
 		case "enter":
-			if m.streaming {
+			if m.streaming || m.client == nil {
 				break
 			}
 			input := m.textInput.Value()
@@ -76,7 +77,8 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		headerHeight := lipgloss.Height(m.headerView())
 		textInputHeight := lipgloss.Height(m.textInput.View())
-		verticalMarginHeight := headerHeight + textInputHeight
+		statusHeight := lipgloss.Height(m.statusView())
+		verticalMarginHeight := headerHeight + textInputHeight + statusHeight
 
 		if !m.ready {
 			m.viewport = viewport.New(
@@ -249,11 +251,16 @@ func (m MainViewModel) headerView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
 }
 
+func (m MainViewModel) statusView() string {
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
+	return style.Render(m.status)
+}
+
 func (m MainViewModel) View() tea.View {
 	var c *tea.Cursor
 	if !m.textInput.VirtualCursor() {
 		c = m.textInput.Cursor()
-		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height()
+		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height() + lipgloss.Height(m.statusView())
 	}
 
 	var content string
@@ -265,6 +272,7 @@ func (m MainViewModel) View() tea.View {
 			m.headerView(),
 			m.viewport.View(),
 			m.textInput.View(),
+			m.statusView(),
 		)
 	}
 
@@ -272,6 +280,37 @@ func (m MainViewModel) View() tea.View {
 	v.AltScreen = true
 	v.Cursor = c
 	return v
+}
+
+func resolveModel(cfg config.Config) (*apiclient.Client, string, string) {
+	if cfg.DefaultModel == "" {
+		return nil, "", "no model selected"
+	}
+
+	parts := strings.SplitN(cfg.DefaultModel, "/", 2)
+	if len(parts) != 2 {
+		return nil, "", "no model selected"
+	}
+
+	providerName, modelID := parts[0], parts[1]
+	provider, ok := cfg.Providers[providerName]
+	if !ok {
+		return nil, "", "no model selected"
+	}
+
+	found := false
+	for _, m := range provider.Models {
+		if m.ID == modelID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, "", "no model selected"
+	}
+
+	client := apiclient.NewWithBaseURL(provider.APIKey, provider.BaseURL)
+	return client, modelID, cfg.DefaultModel
 }
 
 func initialMainViewModel(cfg config.Config) MainViewModel {
@@ -282,15 +321,7 @@ func initialMainViewModel(cfg config.Config) MainViewModel {
 	ti.CharLimit = 4096
 	ti.SetWidth(50)
 
-	var client *apiclient.Client
-	var modelID string
-	for _, provider := range cfg.Providers {
-		client = apiclient.NewWithBaseURL(provider.APIKey, provider.BaseURL)
-		if len(provider.Models) > 0 {
-			modelID = provider.Models[0].ID
-		}
-		break
-	}
+	client, modelID, status := resolveModel(cfg)
 
 	messages := []apiclient.ChatCompletionMessage{
 		apiclient.NewTextMessage("system", "You are a helpful agent"),
@@ -300,6 +331,7 @@ func initialMainViewModel(cfg config.Config) MainViewModel {
 		textInput: ti,
 		client:    client,
 		modelID:   modelID,
+		status:    status,
 		messages:  messages,
 	}
 }

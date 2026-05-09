@@ -40,6 +40,7 @@ func TestLoadReadsExistingConfig(t *testing.T) {
 	}
 
 	want := Config{
+		DefaultModel: "ollama/llama3.1:8b",
 		Providers: map[string]Provider{
 			"ollama": {
 				BaseURL: "http://localhost:11434/v1",

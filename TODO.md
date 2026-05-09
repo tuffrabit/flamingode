@@ -13,3 +13,5 @@
 - spinner while performing action
 - default system prompt with project level preference
 - basic user input, send message, get response loop
+- cli args
+- default model

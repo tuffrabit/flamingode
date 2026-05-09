@@ -9,7 +9,8 @@ import (
 
 // Config is the top-level application configuration.
 type Config struct {
-	Providers map[string]Provider `json:"providers"`
+	Providers    map[string]Provider `json:"providers"`
+	DefaultModel string              `json:"defaultModel,omitempty"`
 }
 
 // Provider describes a custom inference endpoint.
