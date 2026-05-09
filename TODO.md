@@ -16,6 +16,8 @@
 - bug: user input horizontal scroll limit
 - display streaming responses
 - display streaming response thinking sections
+- display tool calls
 - token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs
 - bug: word wrap on long responses
+- project file splitting
