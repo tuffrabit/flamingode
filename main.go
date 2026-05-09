@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
 	"github.com/tuffrabit/flamingode/internal/config"
 )
@@ -147,6 +148,10 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MainViewModel) renderChat() string {
+	wrapWidth := m.viewport.Width()
+	if wrapWidth <= 0 {
+		wrapWidth = 80
+	}
 	var b strings.Builder
 	for _, msg := range m.messages {
 		prefix := "You: "
@@ -155,16 +160,16 @@ func (m MainViewModel) renderChat() string {
 		} else if msg.Role == "system" {
 			continue
 		}
-		b.WriteString(prefix)
-		b.WriteString(msg.Content)
+		line := prefix + msg.Content
+		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 		b.WriteString("\n\n")
 	}
 	if m.streaming || m.pending != "" {
-		b.WriteString("Assistant: ")
-		b.WriteString(m.pending)
+		line := "Assistant: " + m.pending
 		if m.streaming {
-			b.WriteString("█")
+			line += "█"
 		}
+		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 	}
 	return b.String()
 }
