@@ -1,5 +1,4 @@
 - uuid named chat sessions that are stored and can be resumed
-- read file tool
 - write file tool
 - write partial file tool
 - grep tool
@@ -15,5 +14,4 @@
 - help/hints
 - mcp's
 - request/response logging
-- file read size limit in config, file read truncation message in tool description sent to llm, file read truncation warning included in tool call result
 - list dir bug

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,31 +63,36 @@ func TestReadFile_RejectsBinary(t *testing.T) {
 	}
 }
 
-func TestReadFile_RejectsOversized(t *testing.T) {
+func TestReadFile_TruncatesOversized(t *testing.T) {
 	tmpDir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(tmpDir, "huge.txt"), []byte(strings.Repeat("x", defaultMaxFileSize+1)), 0644)
 
 	tool := &ReadFile{WorkingDir: tmpDir}
-	_, err := tool.GetAction()(context.Background(), `{"path":"huge.txt"}`)
-	if err == nil {
-		t.Fatal("expected error for oversized file, got nil")
+	result, err := tool.GetAction()(context.Background(), `{"path":"huge.txt"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "maximum size") {
-		t.Fatalf("expected size limit error, got: %v", err)
+	if !strings.Contains(result, "[File truncated:") {
+		t.Fatalf("expected truncation notice, got: %q", result)
+	}
+	// Content should be defaultMaxFileSize bytes (all "x" on one line plus newline) plus the notice.
+	expectedContentLen := defaultMaxFileSize + 1 // "x" * maxSize + "\n"
+	if len(result) != expectedContentLen+len(fmt.Sprintf("[File truncated: exceeded max size of %d bytes]\n", defaultMaxFileSize)) {
+		t.Fatalf("unexpected result length: got %d, expected around %d", len(result), expectedContentLen)
 	}
 }
 
-func TestReadFile_CustomMaxSize(t *testing.T) {
+func TestReadFile_CustomMaxSizeTruncates(t *testing.T) {
 	tmpDir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(tmpDir, "medium.txt"), []byte(strings.Repeat("x", 500)), 0644)
 
 	tool := &ReadFile{WorkingDir: tmpDir, MaxSize: 400}
-	_, err := tool.GetAction()(context.Background(), `{"path":"medium.txt"}`)
-	if err == nil {
-		t.Fatal("expected error for oversized file with custom max, got nil")
+	result, err := tool.GetAction()(context.Background(), `{"path":"medium.txt"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "maximum size") {
-		t.Fatalf("expected size limit error, got: %v", err)
+	if !strings.Contains(result, "[File truncated:") {
+		t.Fatalf("expected truncation notice, got: %q", result)
 	}
 }
 

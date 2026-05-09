@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,11 @@ func (r *ReadFile) GetName() string {
 }
 
 func (r *ReadFile) GetDescription() string {
-	return "Read the contents of a text file within the working directory. Returns the file content as a string. Rejects binary files and files larger than ~100KB (~25k tokens). Supports reading a specific line range via line_offset (1-indexed) and limit."
+	maxSize := r.MaxSize
+	if maxSize <= 0 {
+		maxSize = defaultMaxFileSize
+	}
+	return fmt.Sprintf("Read the contents of a text file within the working directory. Returns the file content as a string. Files larger than %d bytes are truncated. Rejects binary files. Supports reading a specific line range via line_offset (1-indexed) and limit.", maxSize)
 }
 
 func (r *ReadFile) GetParameters() map[string]interface{} {
@@ -93,19 +98,28 @@ func (r *ReadFile) GetAction() ToolAction {
 			return "", fmt.Errorf("path is a directory, not a file")
 		}
 
-		// Enforce file size limit.
+		// Determine effective max size.
 		maxSize := r.MaxSize
 		if maxSize <= 0 {
 			maxSize = defaultMaxFileSize
 		}
-		if info.Size() > maxSize {
-			return "", fmt.Errorf("file exceeds maximum size of %d bytes (~25k tokens)", maxSize)
-		}
 
-		// Read file contents.
-		b, err := os.ReadFile(cleanPath)
+		// Open and read up to maxSize bytes.
+		file, err := os.Open(cleanPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to open file: %w", err)
+		}
+		defer file.Close()
+
+		wasTruncated := info.Size() > maxSize
+		b, err := io.ReadAll(io.LimitReader(file, maxSize))
 		if err != nil {
 			return "", fmt.Errorf("failed to read file: %w", err)
+		}
+
+		// If truncated, strip any incomplete UTF-8 sequence at the end.
+		if wasTruncated {
+			b = fixTruncatedUTF8(b)
 		}
 
 		// Reject binary or non-UTF-8 files.
@@ -119,7 +133,7 @@ func (r *ReadFile) GetAction() ToolAction {
 		}
 
 		scanner := bufio.NewScanner(strings.NewReader(string(b)))
-		scanner.Buffer(make([]byte, 1024), int(maxSize))
+		scanner.Buffer(make([]byte, 1024), int(maxSize)+1024)
 
 		currentLine := 1
 		var result strings.Builder
@@ -139,6 +153,23 @@ func (r *ReadFile) GetAction() ToolAction {
 			return "", fmt.Errorf("failed to scan file: %w", err)
 		}
 
+		if wasTruncated {
+			result.WriteString(fmt.Sprintf("[File truncated: exceeded max size of %d bytes]\n", maxSize))
+		}
+
 		return result.String(), nil
 	}
+}
+
+// fixTruncatedUTF8 trims incomplete UTF-8 sequences from the end of a byte slice.
+func fixTruncatedUTF8(b []byte) []byte {
+	if utf8.Valid(b) {
+		return b
+	}
+	for i := 1; i <= 3 && i < len(b); i++ {
+		if utf8.Valid(b[:len(b)-i]) {
+			return b[:len(b)-i]
+		}
+	}
+	return b
 }
