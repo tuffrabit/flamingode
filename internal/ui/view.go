@@ -32,9 +32,7 @@ func (m MainViewModel) renderChat() string {
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 		b.WriteString("\n\n")
 	}
-	if m.streaming && m.pending == "" && m.pendingThinking == "" {
-		b.WriteString(m.spinner.View())
-	} else if m.streaming || m.pending != "" || m.pendingThinking != "" {
+	if m.streaming || m.pending != "" || m.pendingThinking != "" {
 		if m.pendingThinking != "" {
 			thinkingLine := "Thinking: " + m.pendingThinking
 			if m.streaming && m.pending == "" {
@@ -43,11 +41,15 @@ func (m MainViewModel) renderChat() string {
 			b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
 			b.WriteString("\n\n")
 		}
-		line := "Assistant: " + m.pending
-		if m.streaming && m.pending != "" {
-			line += "█"
+		if m.streaming && m.pending == "" {
+			b.WriteString(m.spinner.View())
+		} else {
+			line := "Assistant: " + m.pending
+			if m.streaming && m.pending != "" {
+				line += "█"
+			}
+			b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 		}
-		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))
 	}
 	return b.String()
 }
