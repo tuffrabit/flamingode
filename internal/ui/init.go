@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
@@ -56,6 +57,8 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 
 	client, modelID, status := resolveModel(cfg)
 
+	wd, _ := os.Getwd()
+
 	messages := []apiclient.ChatCompletionMessage{
 		apiclient.NewTextMessage("system", "You are a helpful agent"),
 	}
@@ -65,11 +68,12 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
 
 	return MainViewModel{
-		textInput: ti,
-		client:    client,
-		modelID:   modelID,
-		status:    status,
-		messages:  messages,
-		spinner:   s,
+		textInput:  ti,
+		client:     client,
+		modelID:    modelID,
+		status:     status,
+		workingDir: wd,
+		messages:   messages,
+		spinner:    s,
 	}
 }

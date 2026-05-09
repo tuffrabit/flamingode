@@ -21,6 +21,7 @@ type MainViewModel struct {
 	client          *apiclient.Client
 	modelID         string
 	status          string
+	workingDir      string
 	messages        []apiclient.ChatCompletionMessage
 	pending         string
 	pendingThinking string

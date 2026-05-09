@@ -121,11 +121,15 @@ func (m MainViewModel) headerView() string {
 		Foreground(lipgloss.Color("#888")).
 		Render(version.Get())
 
+	wdLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#888")).
+		Render(m.workingDir)
+
 	statusLine := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#888")).
 		Render(m.status)
 
-	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle, statusLine)
+	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle, wdLine, statusLine)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
 }

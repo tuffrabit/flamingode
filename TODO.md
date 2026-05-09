@@ -14,6 +14,4 @@
 - user input "up/down" arrow for navigating previously submitted user inputs
 - slash commands
 - help/hints
-- refactor status bar up to the version area next to the avatar
-- display current directory
 - mcp's
