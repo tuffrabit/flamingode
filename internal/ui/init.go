@@ -75,6 +75,7 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 	r.Register(&tools.ListDirectory{WorkingDir: wd})
 	r.Register(&tools.ReadFile{WorkingDir: wd, MaxSize: cfg.Tools.ReadFile.MaxSize})
 	r.Register(&tools.WriteFile{WorkingDir: wd})
+	r.Register(&tools.ReplaceText{WorkingDir: wd})
 
 	return MainViewModel{
 		textInput:    ti,

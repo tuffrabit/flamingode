@@ -1,5 +1,4 @@
 - uuid named chat sessions that are stored and can be resumed
-- write partial file tool
 - grep tool
 - bash tool
 - permissions
@@ -11,3 +10,5 @@
 - slash commands
 - help/hints
 - mcp's
+- read before write
+- tool calls should respect configured context limit size
