@@ -12,6 +12,8 @@ type Config struct {
 	Providers    map[string]Provider `json:"providers"`
 	DefaultModel string              `json:"defaultModel,omitempty"`
 	Tools        ToolsConfig         `json:"tools,omitempty"`
+	Debug        bool                `json:"-"`
+	DebugLogPath string              `json:"-"`
 }
 
 // ToolsConfig holds configuration for individual tools.

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/tuffrabit/flamingode/internal/config"
@@ -11,9 +13,22 @@ import (
 )
 
 func main() {
+	debug := flag.Bool("d", false, "enable debug logging for LLM API requests and responses")
+	flag.Parse()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalln("Failed to load config, error:", err)
+	}
+
+	if *debug {
+		exe, err := os.Executable()
+		if err != nil {
+			log.Println("Unable to determine executable path, debug logging disabled:", err)
+		} else {
+			cfg.Debug = true
+			cfg.DebugLogPath = filepath.Join(filepath.Dir(exe), "debug.log")
+		}
 	}
 
 	p := tea.NewProgram(ui.InitialMainViewModel(cfg))

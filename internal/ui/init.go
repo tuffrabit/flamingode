@@ -40,6 +40,9 @@ func resolveModel(cfg config.Config) (*apiclient.Client, string, string) {
 	}
 
 	client := apiclient.NewWithBaseURL(provider.APIKey, provider.BaseURL)
+	if cfg.Debug {
+		_ = client.SetDebug(true, cfg.DebugLogPath)
+	}
 	return client, modelID, cfg.DefaultModel
 }
 

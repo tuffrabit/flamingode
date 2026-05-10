@@ -13,4 +13,3 @@
 - slash commands
 - help/hints
 - mcp's
-- request/response logging

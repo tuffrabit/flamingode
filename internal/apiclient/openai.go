@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -16,9 +18,12 @@ import (
 
 // Client is an HTTP client for the OpenAI Chat Completions API.
 type Client struct {
-	baseURL    string
-	apiKey     string
-	httpClient *http.Client
+	baseURL      string
+	apiKey       string
+	httpClient   *http.Client
+	debug        bool
+	debugLog     *log.Logger
+	debugLogFile *os.File
 }
 
 // New creates a new OpenAI API client with the provided API key.
@@ -48,6 +53,34 @@ func (c *Client) SetHTTPClient(client *http.Client) {
 	c.httpClient = client
 }
 
+// SetDebug enables or disables debug logging. When enabled, request and
+// response bodies are appended to the file at logPath.
+func (c *Client) SetDebug(enabled bool, logPath string) error {
+	c.debug = enabled
+	if c.debugLogFile != nil {
+		c.debugLogFile.Close()
+		c.debugLogFile = nil
+		c.debugLog = nil
+	}
+	if enabled && logPath != "" {
+		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		c.debugLogFile = f
+		c.debugLog = log.New(f, "", 0)
+	}
+	return nil
+}
+
+func (c *Client) logDebug(kind, url string, body []byte) {
+	if !c.debug || c.debugLog == nil {
+		return
+	}
+	timestamp := time.Now().Format(time.RFC3339)
+	c.debugLog.Printf("%s %s %s %s", timestamp, kind, url, body)
+}
+
 func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
@@ -66,12 +99,18 @@ func (c *Client) doRequest(req *http.Request, out interface{}) error {
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+	if c.debug {
+		c.logDebug("response", req.URL.String(), body)
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		resp.Body = io.NopCloser(bytes.NewReader(body))
 		return c.decodeError(resp)
 	}
 
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.Unmarshal(body, out)
 	}
 	return nil
 }
@@ -388,6 +427,7 @@ func (c *Client) CreateChatCompletion(ctx context.Context, req ChatCompletionReq
 	if err != nil {
 		return nil, err
 	}
+	c.logDebug("request", httpReq.URL.String(), body)
 
 	var resp ChatCompletionResponse
 	if err := c.doRequest(httpReq, &resp); err != nil {
@@ -450,6 +490,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, req ChatComplet
 		return nil, err
 	}
 	httpReq.Header.Set("Accept", "text/event-stream")
+	c.logDebug("request", httpReq.URL.String(), body)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -488,6 +529,7 @@ func (c *Client) ListChatCompletions(ctx context.Context, limit int, order strin
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Accept", "application/json")
+	c.logDebug("request", req.URL.String(), nil)
 
 	var list ChatCompletionList
 	if err := c.doRequest(req, &list); err != nil {
@@ -503,6 +545,7 @@ func (c *Client) GetChatCompletion(ctx context.Context, completionID string) (*C
 	if err != nil {
 		return nil, err
 	}
+	c.logDebug("request", req.URL.String(), nil)
 
 	var resp ChatCompletionResponse
 	if err := c.doRequest(req, &resp); err != nil {
@@ -523,6 +566,7 @@ func (c *Client) UpdateChatCompletion(ctx context.Context, completionID, status 
 	if err != nil {
 		return nil, err
 	}
+	c.logDebug("request", req.URL.String(), body)
 
 	var resp ChatCompletionResponse
 	if err := c.doRequest(req, &resp); err != nil {
@@ -538,6 +582,7 @@ func (c *Client) DeleteChatCompletion(ctx context.Context, completionID string) 
 	if err != nil {
 		return nil, err
 	}
+	c.logDebug("request", req.URL.String(), nil)
 
 	var resp ChatCompletionDeleted
 	if err := c.doRequest(req, &resp); err != nil {
@@ -553,6 +598,7 @@ func (c *Client) GetChatCompletionMessages(ctx context.Context, completionID str
 	if err != nil {
 		return nil, err
 	}
+	c.logDebug("request", req.URL.String(), nil)
 
 	var resp ChatCompletionMessagesResponse
 	if err := c.doRequest(req, &resp); err != nil {
