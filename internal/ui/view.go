@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
@@ -26,12 +28,28 @@ func (m MainViewModel) renderChat() string {
 				b.WriteString(ansi.Wordwrap(thinkingStyle.Render(thinkingLine), wrapWidth, ""))
 				b.WriteString("\n\n")
 			}
-			if msg.Content == "" && len(msg.ToolCalls) > 0 {
+			hasToolCalls := len(msg.ToolCalls) > 0
+			if hasToolCalls {
+				for _, tc := range msg.ToolCalls {
+					toolLine := "Tool: " + tc.Function.Name
+					if tc.Function.Arguments != "" {
+						var args map[string]interface{}
+						if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
+							for k, v := range args {
+								toolLine += " " + k + ":" + fmt.Sprintf("%v", v)
+							}
+						}
+					}
+					b.WriteString(ansi.Wordwrap(toolLine, wrapWidth, ""))
+					b.WriteString("\n\n")
+				}
+			}
+			if msg.Content == "" && hasToolCalls {
 				continue
 			}
 			prefix = "Assistant: "
 		} else if msg.Role == "tool" {
-			prefix = "Tool: "
+			continue
 		}
 		line := prefix + msg.Content
 		b.WriteString(ansi.Wordwrap(line, wrapWidth, ""))

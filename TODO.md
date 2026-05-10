@@ -7,7 +7,6 @@
 - include file or dir listing with '@'
 - default system prompt with project level preference
 - cli args
-- display tool calls in a friendly format
 - token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs
 - slash commands
