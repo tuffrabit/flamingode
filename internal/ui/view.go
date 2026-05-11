@@ -152,7 +152,14 @@ func (m MainViewModel) headerView() string {
 		Foreground(lipgloss.Color("#888")).
 		Render(m.status)
 
-	info := lipgloss.JoinVertical(lipgloss.Left, title, subtitle, wdLine, statusLine)
+	infoLines := []string{title, subtitle, wdLine, statusLine}
+	if m.sessionUsage.TotalTokens > 0 {
+		usageLine := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888")).
+			Render(fmt.Sprintf("Tokens: %d ↑ / %d ↓  (%d total)", m.sessionUsage.PromptTokens, m.sessionUsage.CompletionTokens, m.sessionUsage.TotalTokens))
+		infoLines = append(infoLines, usageLine)
+	}
+	info := lipgloss.JoinVertical(lipgloss.Left, infoLines...)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, flamingo, "  ", info)
 }

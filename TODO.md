@@ -5,10 +5,10 @@
 - include file or dir listing with '@'
 - default system prompt with project level preference
 - cli args: model
-- token usage tracking
 - user input "up/down" arrow for navigating previously submitted user inputs
 - slash commands
 - help/hints
 - mcp's
 - read before write
 - tool calls should respect configured context limit size
+- weird bug with tool call lines flickering

@@ -16,14 +16,16 @@ type streamMsg struct {
 	stream        *apiclient.ChatCompletionStream
 	toolCalls     []apiclient.ToolCall
 	finishReason  string
+	usage         *apiclient.Usage
 }
 
 func (m MainViewModel) startStream() tea.Cmd {
 	return func() tea.Msg {
 		req := apiclient.ChatCompletionRequest{
-			Model:    m.modelID,
-			Messages: m.messages,
-			Stream:   true,
+			Model:         m.modelID,
+			Messages:      m.messages,
+			Stream:        true,
+			StreamOptions: &apiclient.StreamOptions{IncludeUsage: true},
 		}
 		if m.toolRegistry != nil {
 			req.Tools = m.toolRegistry.ToOpenAITools()
@@ -46,6 +48,9 @@ func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cm
 		if err != nil {
 			_ = stream.Close()
 			return streamMsg{err: err}
+		}
+		if chunk.Usage != nil {
+			return streamMsg{usage: chunk.Usage, stream: stream}
 		}
 		var content, thinking, finishReason string
 		var tcs []apiclient.ToolCall

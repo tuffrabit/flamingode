@@ -31,6 +31,7 @@ type MainViewModel struct {
 	spinner          spinner.Model
 	toolRegistry     *tools.Registry
 	pendingToolCalls []apiclient.ToolCall
+	sessionUsage     apiclient.Usage
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -99,6 +100,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pendingToolCalls = nil
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
+			break
+		}
+		if msg.usage != nil {
+			m.sessionUsage.PromptTokens += msg.usage.PromptTokens
+			m.sessionUsage.CompletionTokens += msg.usage.CompletionTokens
+			m.sessionUsage.TotalTokens += msg.usage.TotalTokens
+			cmds = append(cmds, m.readStream(msg.stream))
 			break
 		}
 		if msg.done {
