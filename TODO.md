@@ -11,4 +11,5 @@
 - mcp's
 - read before write
 - weird bug with tool call lines flickering
-- token tracking is off
+- api response debug logging actually capture body
+- api user agent

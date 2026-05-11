@@ -49,9 +49,6 @@ func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cm
 			_ = stream.Close()
 			return streamMsg{err: err}
 		}
-		if chunk.Usage != nil {
-			return streamMsg{usage: chunk.Usage, stream: stream}
-		}
 		var content, thinking, finishReason string
 		var tcs []apiclient.ToolCall
 		if len(chunk.Choices) > 0 {
@@ -60,6 +57,14 @@ func (m MainViewModel) readStream(stream *apiclient.ChatCompletionStream) tea.Cm
 			tcs = chunk.Choices[0].Delta.ToolCalls
 			finishReason = chunk.Choices[0].FinishReason
 		}
-		return streamMsg{chunk: content, thinkingChunk: thinking, stream: stream, toolCalls: tcs, finishReason: finishReason}
+
+		return streamMsg{
+			chunk:         content,
+			thinkingChunk: thinking,
+			stream:        stream,
+			toolCalls:     tcs,
+			finishReason:  finishReason,
+			usage:         chunk.Usage,
+		}
 	}
 }

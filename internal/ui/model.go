@@ -31,8 +31,9 @@ type MainViewModel struct {
 	streaming        bool
 	spinner          spinner.Model
 	toolRegistry     *tools.Registry
-	pendingToolCalls []apiclient.ToolCall
-	sessionUsage     apiclient.Usage
+	pendingToolCalls    []apiclient.ToolCall
+	sessionUsage        apiclient.Usage
+	streamUsageRecorded bool
 }
 
 func estimateTokens(msgs []apiclient.ChatCompletionMessage) int {
@@ -83,6 +84,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pending = ""
 			m.pendingThinking = ""
 			m.streaming = true
+			m.streamUsageRecorded = false
 			m.viewport.SetContent(m.renderChat())
 			m.viewport.GotoBottom()
 			cmds = append(cmds, m.startStream(), m.spinner.Tick)
@@ -123,12 +125,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.GotoBottom()
 			break
 		}
-		if msg.usage != nil {
+		// Accumulate usage only once per stream. Some OpenAI-compatible servers
+		// (including certain llama.cpp versions) send usage in multiple chunks.
+		if msg.usage != nil && !m.streamUsageRecorded {
 			m.sessionUsage.PromptTokens += msg.usage.PromptTokens
 			m.sessionUsage.CompletionTokens += msg.usage.CompletionTokens
 			m.sessionUsage.TotalTokens += msg.usage.TotalTokens
-			cmds = append(cmds, m.readStream(msg.stream))
-			break
+			m.streamUsageRecorded = true
 		}
 		if msg.done {
 			if len(m.pendingToolCalls) > 0 {
@@ -191,6 +194,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pending = ""
 				m.pendingThinking = ""
 				m.streaming = true
+				m.streamUsageRecorded = false
 				cmds = append(cmds, m.startStream(), m.spinner.Tick)
 				m.viewport.SetContent(m.renderChat())
 				m.viewport.GotoBottom()
