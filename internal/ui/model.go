@@ -22,6 +22,7 @@ type MainViewModel struct {
 	windowHeight     int
 	client           *apiclient.Client
 	modelID          string
+	contextWindow    int
 	status           string
 	workingDir       string
 	messages         []apiclient.ChatCompletionMessage
@@ -32,6 +33,26 @@ type MainViewModel struct {
 	toolRegistry     *tools.Registry
 	pendingToolCalls []apiclient.ToolCall
 	sessionUsage     apiclient.Usage
+}
+
+func estimateTokens(msgs []apiclient.ChatCompletionMessage) int {
+	tokens := 0
+	for _, msg := range msgs {
+		// Use bytes/3 instead of bytes/4 for a more conservative estimate
+		// (code and special characters often tokenize at ~3 bytes/token).
+		tokens += len(msg.Content) / 3
+		tokens += len(msg.ReasoningContent) / 3
+		for _, tc := range msg.ToolCalls {
+			tokens += len(tc.Function.Name) / 3
+			tokens += len(tc.Function.Arguments) / 3
+		}
+		if msg.ToolCallID != "" {
+			tokens += len(msg.ToolCallID) / 3
+		}
+	}
+	// Rough overhead per message for role/formatting.
+	tokens += len(msgs) * 4
+	return tokens
 }
 
 func (m MainViewModel) Init() tea.Cmd {
@@ -118,10 +139,52 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					ToolCalls:        m.pendingToolCalls,
 				})
 				for _, tc := range m.pendingToolCalls {
-					result, err := m.toolRegistry.ExecuteToolCall(context.Background(), tc)
-					if err != nil {
-						result = fmt.Sprintf("error: %v", err)
+					remainingTokens := 0
+					if m.contextWindow > 0 {
+						// Cap at 75% of context window to leave headroom for the model's
+						// response and estimation error. Also subtract rough tool schema overhead.
+						toolOverhead := len(m.toolRegistry.List()) * 200
+						remainingTokens = int(float64(m.contextWindow)*0.75) - estimateTokens(m.messages) - toolOverhead
 					}
+
+					var result string
+					if m.contextWindow > 0 && remainingTokens <= 0 {
+						result = "[Result omitted: context window exhausted. Consider requesting a smaller range or summarizing.]"
+					} else {
+						var origMaxSize int64
+						if t, ok := m.toolRegistry.Get("read_file"); ok {
+							if rf, ok := t.(*tools.ReadFile); ok && m.contextWindow > 0 {
+								origMaxSize = rf.MaxSize
+								safeBytes := int64(remainingTokens * 4)
+								if safeBytes > 0 && (safeBytes < rf.MaxSize || rf.MaxSize == 0) {
+									rf.MaxSize = safeBytes
+								}
+							}
+						}
+
+						var err error
+						result, err = m.toolRegistry.ExecuteToolCall(context.Background(), tc)
+						if err != nil {
+							result = fmt.Sprintf("error: %v", err)
+						}
+
+						if t, ok := m.toolRegistry.Get("read_file"); ok {
+							if rf, ok := t.(*tools.ReadFile); ok {
+								rf.MaxSize = origMaxSize
+							}
+						}
+
+						if m.contextWindow > 0 {
+							resultTokens := len(result) / 4
+							if resultTokens > remainingTokens {
+								maxBytes := remainingTokens * 4
+								if maxBytes > 0 && maxBytes < len(result) {
+									result = result[:maxBytes] + fmt.Sprintf("\n[Result truncated: exceeded available context. Remaining: ~%d tokens]", remainingTokens)
+								}
+							}
+						}
+					}
+
 					m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
 				}
 				m.pendingToolCalls = nil

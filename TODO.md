@@ -10,5 +10,5 @@
 - help/hints
 - mcp's
 - read before write
-- tool calls should respect configured context limit size
 - weird bug with tool call lines flickering
+- token tracking is off

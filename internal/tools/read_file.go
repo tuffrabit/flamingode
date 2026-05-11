@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-// defaultMaxFileSize is roughly 25k tokens (approximated at ~4 bytes per token).
-const defaultMaxFileSize = 100_000
+// DefaultMaxFileSize is roughly 25k tokens (approximated at ~4 bytes per token).
+const DefaultMaxFileSize = 100_000
 
 // ReadFile reads the contents of a text file within the working directory.
 type ReadFile struct {
@@ -28,7 +28,7 @@ func (r *ReadFile) GetName() string {
 func (r *ReadFile) GetDescription() string {
 	maxSize := r.MaxSize
 	if maxSize <= 0 {
-		maxSize = defaultMaxFileSize
+		maxSize = DefaultMaxFileSize
 	}
 	return fmt.Sprintf("Read the contents of a text file within the working directory. Returns the file content as a string. Files larger than %d bytes are truncated. Rejects binary files. Supports reading a specific line range via line_offset (1-indexed) and limit.", maxSize)
 }
@@ -101,7 +101,7 @@ func (r *ReadFile) GetAction() ToolAction {
 		// Determine effective max size.
 		maxSize := r.MaxSize
 		if maxSize <= 0 {
-			maxSize = defaultMaxFileSize
+			maxSize = DefaultMaxFileSize
 		}
 
 		// Open and read up to maxSize bytes.
