@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tuffrabit/flamingode/internal/version"
 )
 
 // Client is an HTTP client for the OpenAI Chat Completions API.
@@ -89,6 +91,7 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "flamingode/"+version.Get())
 	return req, nil
 }
 
@@ -529,6 +532,7 @@ func (c *Client) ListChatCompletions(ctx context.Context, limit int, order strin
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "flamingode/"+version.Get())
 	c.logDebug("request", req.URL.String(), nil)
 
 	var list ChatCompletionList

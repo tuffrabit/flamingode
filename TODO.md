@@ -12,4 +12,4 @@
 - read before write
 - weird bug with tool call lines flickering
 - api response debug logging actually capture body
-- api user agent
+- scrollable area flicker on typing
