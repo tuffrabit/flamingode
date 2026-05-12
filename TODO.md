@@ -11,3 +11,4 @@
 - api response debug logging actually capture body
 - readme
 - config example
+- glob tool (filename search)

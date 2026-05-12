@@ -11,29 +11,32 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
+	"github.com/tuffrabit/flamingode/internal/session"
 	"github.com/tuffrabit/flamingode/internal/tools"
 )
 
 type MainViewModel struct {
-	ready            bool
-	viewport         viewport.Model
-	textInput        textarea.Model
-	windowWidth      int
-	windowHeight     int
-	client           *apiclient.Client
-	modelID          string
-	contextWindow    int
-	status           string
-	workingDir       string
-	messages         []apiclient.ChatCompletionMessage
-	pending          string
-	pendingThinking  string
-	streaming        bool
-	spinner          spinner.Model
-	toolRegistry     *tools.Registry
+	ready               bool
+	viewport            viewport.Model
+	textInput           textarea.Model
+	windowWidth         int
+	windowHeight        int
+	client              *apiclient.Client
+	modelID             string
+	contextWindow       int
+	status              string
+	workingDir          string
+	messages            []apiclient.ChatCompletionMessage
+	pending             string
+	pendingThinking     string
+	streaming           bool
+	spinner             spinner.Model
+	toolRegistry        *tools.Registry
 	pendingToolCalls    []apiclient.ToolCall
 	sessionUsage        apiclient.Usage
 	streamUsageRecorded bool
+	session             *session.Session
+	sessionID           string
 }
 
 func estimateTokens(msgs []apiclient.ChatCompletionMessage) int {
@@ -60,6 +63,33 @@ func (m MainViewModel) Init() tea.Cmd {
 	return textarea.Blink
 }
 
+func (m *MainViewModel) persistMessage(msg apiclient.ChatCompletionMessage) {
+	if m.session == nil {
+		return
+	}
+	_ = m.session.AppendEvent(session.EventFromMessage(msg))
+}
+
+func (m *MainViewModel) persistError(err error) {
+	if m.session == nil {
+		return
+	}
+	evt := session.Event{
+		Type:    "error",
+		Role:    "assistant",
+		Content: fmt.Sprintf("[error: %v]", err),
+	}
+	_ = m.session.AppendEvent(evt)
+}
+
+func (m *MainViewModel) updateSessionUsage() {
+	if m.session == nil {
+		return
+	}
+	m.session.Header.Usage = m.sessionUsage
+	_ = m.session.UpdateHeader()
+}
+
 func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -80,7 +110,9 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			m.textInput.SetValue("")
-			m.messages = append(m.messages, apiclient.NewTextMessage("user", input))
+			userMsg := apiclient.NewTextMessage("user", input)
+			m.messages = append(m.messages, userMsg)
+			m.persistMessage(userMsg)
 			m.pending = ""
 			m.pendingThinking = ""
 			m.streaming = true
@@ -108,6 +140,8 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.YPosition = headerHeight
 			m.viewport.KeyMap = viewport.KeyMap{}
 			m.ready = true
+			m.viewport.SetContent(m.renderChat())
+			m.viewport.GotoBottom()
 		} else {
 			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetWidth(msg.Width)
@@ -122,6 +156,7 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.streaming = false
 			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", fmt.Sprintf("[error: %v]", msg.err)))
+			m.persistError(msg.err)
 			m.pending = ""
 			m.pendingThinking = ""
 			m.pendingToolCalls = nil
@@ -136,15 +171,18 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sessionUsage.CompletionTokens += msg.usage.CompletionTokens
 			m.sessionUsage.TotalTokens += msg.usage.TotalTokens
 			m.streamUsageRecorded = true
+			m.updateSessionUsage()
 		}
 		if msg.done {
 			if len(m.pendingToolCalls) > 0 {
-				m.messages = append(m.messages, apiclient.ChatCompletionMessage{
+				assistantMsg := apiclient.ChatCompletionMessage{
 					Role:             "assistant",
 					Content:          m.pending,
 					ReasoningContent: m.pendingThinking,
 					ToolCalls:        m.pendingToolCalls,
-				})
+				}
+				m.messages = append(m.messages, assistantMsg)
+				m.persistMessage(assistantMsg)
 				for _, tc := range m.pendingToolCalls {
 					remainingTokens := 0
 					if m.contextWindow > 0 {
@@ -192,7 +230,9 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 
-					m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
+					toolMsg := tools.NewToolResultMessage(tc.ID, result)
+					m.messages = append(m.messages, toolMsg)
+					m.persistMessage(toolMsg)
 				}
 				m.pendingToolCalls = nil
 				m.pending = ""
@@ -205,11 +245,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			m.streaming = false
-			m.messages = append(m.messages, apiclient.ChatCompletionMessage{
+			assistantMsg := apiclient.ChatCompletionMessage{
 				Role:             "assistant",
 				Content:          m.pending,
 				ReasoningContent: m.pendingThinking,
-			})
+			}
+			m.messages = append(m.messages, assistantMsg)
+			m.persistMessage(assistantMsg)
 			m.pending = ""
 			m.pendingThinking = ""
 			m.viewport.SetContent(m.renderChat())

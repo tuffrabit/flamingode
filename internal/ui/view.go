@@ -159,6 +159,12 @@ func (m MainViewModel) headerView() string {
 		Render(m.status)
 
 	infoLines := []string{title, subtitle, wdLine, statusLine}
+	if m.sessionID != "" {
+		sessionLine := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888")).
+			Render("Session: " + m.sessionID[:8])
+		infoLines = append(infoLines, sessionLine)
+	}
 	if m.sessionUsage.TotalTokens > 0 {
 		usageLine := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888")).
