@@ -348,3 +348,21 @@ func TestGrep_CaseInsensitiveRegex(t *testing.T) {
 		t.Fatalf("expected match for HELLO, got: %q", result)
 	}
 }
+
+func TestGrep_GitignoreDoesNotSkipRoot(t *testing.T) {
+	// Regression test: .gitignore containing the working directory's basename
+	// should not cause the root search path to be skipped.
+	tmpDir := t.TempDir()
+	base := filepath.Base(tmpDir)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(base+"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result, "file.txt") {
+		t.Fatalf("expected file.txt match, got: %q", result)
+	}
+}

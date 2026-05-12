@@ -71,6 +71,10 @@ func (g *Grep) GetParameters() map[string]interface{} {
 				"type":        "boolean",
 				"description": "If true, include line numbers in the output (e.g., file.go:42 match). Defaults to true.",
 			},
+			"case_insensitive": map[string]interface{}{
+				"type":        "boolean",
+				"description": "If true, perform case insensitive searching.",
+			},
 		},
 		"required": []string{"query", "path"},
 	}
@@ -153,12 +157,15 @@ func (g *Grep) GetAction() ToolAction {
 				return nil // skip files we can't access
 			}
 
-			relPath, _ := filepath.Rel(cleanWorkingDir, path)
-			if matchesGitignore(path, relPath, d.IsDir(), giPatterns) {
-				if d.IsDir() {
-					return filepath.SkipDir
+			// Skip gitignore check for the root of the walk so explicitly requested paths are always searched.
+			if path != cleanPath {
+				relPath, _ := filepath.Rel(cleanWorkingDir, path)
+				if matchesGitignore(path, relPath, d.IsDir(), giPatterns) {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
 				}
-				return nil
 			}
 
 			if d.IsDir() {
