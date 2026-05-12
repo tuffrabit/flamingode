@@ -219,3 +219,92 @@ func TestGrep_ContextCancellation(t *testing.T) {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
 }
+
+func TestGrep_RespectsGitignore_File(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("secret.txt\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "secret.txt"), []byte("findme\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "public.txt"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(result, "secret.txt") {
+		t.Fatalf("expected secret.txt to be skipped, got: %q", result)
+	}
+	if !strings.Contains(result, "public.txt") {
+		t.Fatalf("expected public.txt match, got: %q", result)
+	}
+}
+
+func TestGrep_RespectsGitignore_Dir(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("build/\n"), 0644)
+	_ = os.Mkdir(filepath.Join(tmpDir, "build"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, "build", "out.js"), []byte("findme\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "src.js"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(result, "build") {
+		t.Fatalf("expected build dir to be skipped, got: %q", result)
+	}
+	if !strings.Contains(result, "src.js") {
+		t.Fatalf("expected src.js match, got: %q", result)
+	}
+}
+
+func TestGrep_RespectsGitignore_Wildcard(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("findme\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "app.txt"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(result, "debug.log") {
+		t.Fatalf("expected debug.log to be skipped, got: %q", result)
+	}
+	if !strings.Contains(result, "app.txt") {
+		t.Fatalf("expected app.txt match, got: %q", result)
+	}
+}
+
+func TestGrep_RespectsGitignore_Anchored(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("/root.txt\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("findme\n"), 0644)
+	_ = os.Mkdir(filepath.Join(tmpDir, "sub"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, "sub", "root.txt"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	lines := strings.Split(result, "\n")
+	var hasRoot, hasSubRoot bool
+	for _, line := range lines {
+		if strings.HasPrefix(line, "root.txt:") {
+			hasRoot = true
+		}
+		if strings.HasPrefix(line, "sub/root.txt:") {
+			hasSubRoot = true
+		}
+	}
+	if hasRoot {
+		t.Fatalf("expected root.txt at root to be skipped, got: %q", result)
+	}
+	if !hasSubRoot {
+		t.Fatalf("expected sub/root.txt match, got: %q", result)
+	}
+}

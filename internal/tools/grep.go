@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -47,7 +48,7 @@ func (g *Grep) GetName() string {
 }
 
 func (g *Grep) GetDescription() string {
-	return "Search for a pattern in files within the working directory. Returns matching lines with file paths and optional line numbers. Skips binary files and common dependency/build directories. Supports literal text or regex search."
+	return "Search for a pattern in files within the working directory. Returns matching lines with file paths and optional line numbers. Skips binary files, respects .gitignore patterns, and ignores common dependency/build directories. Supports literal text or regex search."
 }
 
 func (g *Grep) GetParameters() map[string]interface{} {
@@ -131,6 +132,13 @@ func (g *Grep) GetAction() ToolAction {
 		var result bytes.Buffer
 		var totalMatches int
 
+		// Parse .gitignore from the working directory.
+		gitignorePath := filepath.Join(g.WorkingDir, ".gitignore")
+		giPatterns, err := parseGitignore(gitignorePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse .gitignore: %w", err)
+		}
+
 		// Walk the directory tree and search files.
 		err = filepath.WalkDir(cleanPath, func(path string, d os.DirEntry, err error) error {
 			if ctx.Err() != nil {
@@ -139,12 +147,22 @@ func (g *Grep) GetAction() ToolAction {
 			if err != nil {
 				return nil // skip files we can't access
 			}
+
+			relPath, _ := filepath.Rel(cleanWorkingDir, path)
+			if matchesGitignore(path, relPath, d.IsDir(), giPatterns) {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
 			if d.IsDir() {
 				if skipDirs[d.Name()] {
 					return filepath.SkipDir
 				}
 				return nil
 			}
+
 			// Only open regular files — skip symlinks, FIFOs, sockets, devices.
 			if !d.Type().IsRegular() {
 				return nil
@@ -249,4 +267,78 @@ func searchFile(ctx context.Context, path, workingDir, query string, re *regexp.
 	}
 
 	return matches, scanner.Err()
+}
+
+type gitignorePattern struct {
+	raw      string
+	anchored bool
+	dirOnly  bool
+}
+
+func parseGitignore(gitignorePath string) ([]gitignorePattern, error) {
+	data, err := os.ReadFile(gitignorePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var patterns []gitignorePattern
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Skip negation patterns for simplicity.
+		if strings.HasPrefix(line, "!") {
+			continue
+		}
+
+		dirOnly := strings.HasSuffix(line, "/")
+		if dirOnly {
+			line = strings.TrimSuffix(line, "/")
+		}
+
+		anchored := strings.HasPrefix(line, "/") || strings.Contains(line, "/")
+		if strings.HasPrefix(line, "/") {
+			line = strings.TrimPrefix(line, "/")
+		}
+
+		patterns = append(patterns, gitignorePattern{
+			raw:      line,
+			anchored: anchored,
+			dirOnly:  dirOnly,
+		})
+	}
+	return patterns, nil
+}
+
+func matchesGitignore(pathStr, relPath string, isDir bool, patterns []gitignorePattern) bool {
+	if len(patterns) == 0 {
+		return false
+	}
+
+	base := filepath.Base(pathStr)
+	base = filepath.ToSlash(base)
+	relPath = filepath.ToSlash(relPath)
+
+	for _, p := range patterns {
+		if p.dirOnly && !isDir {
+			continue
+		}
+
+		var target string
+		if p.anchored {
+			target = relPath
+		} else {
+			target = base
+		}
+
+		matched, _ := path.Match(p.raw, target)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
