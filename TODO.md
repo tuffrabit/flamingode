@@ -1,6 +1,5 @@
 - uuid named chat sessions that are stored and can be resumed
 - grep tool
-- bash tool
 - permissions
 - include file or dir listing with '@'
 - default system prompt with project level preference

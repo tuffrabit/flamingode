@@ -18,12 +18,18 @@ type Config struct {
 
 // ToolsConfig holds configuration for individual tools.
 type ToolsConfig struct {
-	ReadFile ReadFileToolConfig `json:"read_file,omitempty"`
+	ReadFile    ReadFileToolConfig    `json:"read_file,omitempty"`
+	ExecCommand ExecCommandToolConfig `json:"exec_command,omitempty"`
 }
 
 // ReadFileToolConfig holds configuration for the read_file tool.
 type ReadFileToolConfig struct {
 	MaxSize int64 `json:"max_size,omitempty"`
+}
+
+// ExecCommandToolConfig holds configuration for the exec_command tool.
+type ExecCommandToolConfig struct {
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 }
 
 // Provider describes a custom inference endpoint.

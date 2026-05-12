@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textarea"
@@ -78,6 +79,7 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 	r.Register(&tools.ReadFile{WorkingDir: wd, MaxSize: cfg.Tools.ReadFile.MaxSize})
 	r.Register(&tools.WriteFile{WorkingDir: wd})
 	r.Register(&tools.ReplaceText{WorkingDir: wd})
+	r.Register(&tools.ExecCommand{WorkingDir: wd, Timeout: time.Duration(cfg.Tools.ExecCommand.TimeoutSeconds) * time.Second})
 
 	return MainViewModel{
 		textInput:     ti,

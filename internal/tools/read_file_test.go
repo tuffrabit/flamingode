@@ -65,7 +65,7 @@ func TestReadFile_RejectsBinary(t *testing.T) {
 
 func TestReadFile_TruncatesOversized(t *testing.T) {
 	tmpDir := t.TempDir()
-	_ = os.WriteFile(filepath.Join(tmpDir, "huge.txt"), []byte(strings.Repeat("x", defaultMaxFileSize+1)), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "huge.txt"), []byte(strings.Repeat("x", DefaultMaxFileSize+1)), 0644)
 
 	tool := &ReadFile{WorkingDir: tmpDir}
 	result, err := tool.GetAction()(context.Background(), `{"path":"huge.txt"}`)
@@ -75,9 +75,9 @@ func TestReadFile_TruncatesOversized(t *testing.T) {
 	if !strings.Contains(result, "[File truncated:") {
 		t.Fatalf("expected truncation notice, got: %q", result)
 	}
-	// Content should be defaultMaxFileSize bytes (all "x" on one line plus newline) plus the notice.
-	expectedContentLen := defaultMaxFileSize + 1 // "x" * maxSize + "\n"
-	if len(result) != expectedContentLen+len(fmt.Sprintf("[File truncated: exceeded max size of %d bytes]\n", defaultMaxFileSize)) {
+	// Content should be DefaultMaxFileSize bytes (all "x" on one line plus newline) plus the notice.
+	expectedContentLen := DefaultMaxFileSize + 1 // "x" * maxSize + "\n"
+	if len(result) != expectedContentLen+len(fmt.Sprintf("[File truncated: exceeded max size of %d bytes]\n", DefaultMaxFileSize)) {
 		t.Fatalf("unexpected result length: got %d, expected around %d", len(result), expectedContentLen)
 	}
 }
