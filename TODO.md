@@ -12,4 +12,3 @@
 - read before write
 - weird bug with tool call lines flickering
 - api response debug logging actually capture body
-- scrollable area flicker on typing

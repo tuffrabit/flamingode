@@ -106,13 +106,17 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				viewport.WithHeight(msg.Height-verticalMarginHeight),
 			)
 			m.viewport.YPosition = headerHeight
+			m.viewport.KeyMap = viewport.KeyMap{}
 			m.ready = true
 		} else {
+			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetWidth(msg.Width)
 			m.viewport.SetHeight(msg.Height - verticalMarginHeight)
+			m.viewport.SetContent(m.renderChat())
+			if wasAtBottom {
+				m.viewport.GotoBottom()
+			}
 		}
-		m.viewport.SetContent(m.renderChat())
-		m.viewport.GotoBottom()
 
 	case streamMsg:
 		if msg.err != nil {
@@ -246,9 +250,12 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		verticalMarginHeight := headerHeight + textInputHeight
 		newViewportHeight := m.windowHeight - verticalMarginHeight
 		if newViewportHeight > 0 && newViewportHeight != m.viewport.Height() {
+			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetHeight(newViewportHeight)
 			m.viewport.SetContent(m.renderChat())
-			m.viewport.GotoBottom()
+			if wasAtBottom {
+				m.viewport.GotoBottom()
+			}
 		}
 	}
 
