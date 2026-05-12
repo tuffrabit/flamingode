@@ -1,4 +1,3 @@
-- uuid named chat sessions that are stored and can be resumed
 - permissions
 - include file or dir listing with '@'
 - default system prompt with project level preference
@@ -12,3 +11,4 @@
 - readme
 - config example
 - glob tool (filename search)
+- treesitter or lsp support
