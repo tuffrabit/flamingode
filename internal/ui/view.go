@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
@@ -35,8 +36,13 @@ func (m MainViewModel) renderChat() string {
 					if tc.Function.Arguments != "" {
 						var args map[string]interface{}
 						if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
-							for k, v := range args {
-								toolLine += " " + k + ":" + fmt.Sprintf("%v", v)
+							keys := make([]string, 0, len(args))
+							for k := range args {
+								keys = append(keys, k)
+							}
+							sort.Strings(keys)
+							for _, k := range keys {
+								toolLine += " " + k + ":" + fmt.Sprintf("%v", args[k])
 							}
 						}
 					}
