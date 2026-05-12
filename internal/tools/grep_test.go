@@ -308,3 +308,43 @@ func TestGrep_RespectsGitignore_Anchored(t *testing.T) {
 		t.Fatalf("expected sub/root.txt match, got: %q", result)
 	}
 }
+
+func TestGrep_CaseInsensitiveLiteral(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, "data.txt"), []byte("Hello World\nhello again\nHELLO\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"hello","path":"data.txt","case_insensitive":true}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result, "Hello World") {
+		t.Fatalf("expected match for Hello World, got: %q", result)
+	}
+	if !strings.Contains(result, "hello again") {
+		t.Fatalf("expected match for hello again, got: %q", result)
+	}
+	if !strings.Contains(result, "HELLO") {
+		t.Fatalf("expected match for HELLO, got: %q", result)
+	}
+}
+
+func TestGrep_CaseInsensitiveRegex(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, "data.txt"), []byte("Hello World\nhello again\nHELLO\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"^hello","path":"data.txt","regex":true,"case_insensitive":true}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result, "Hello World") {
+		t.Fatalf("expected match for Hello World, got: %q", result)
+	}
+	if !strings.Contains(result, "hello again") {
+		t.Fatalf("expected match for hello again, got: %q", result)
+	}
+	if !strings.Contains(result, "HELLO") {
+		t.Fatalf("expected match for HELLO, got: %q", result)
+	}
+}

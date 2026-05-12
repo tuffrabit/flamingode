@@ -79,10 +79,11 @@ func (g *Grep) GetParameters() map[string]interface{} {
 func (g *Grep) GetAction() ToolAction {
 	return func(ctx context.Context, arguments string) (string, error) {
 		var args struct {
-			Query       string `json:"query"`
-			Path        string `json:"path"`
-			Regex       bool   `json:"regex"`
-			LineNumbers *bool  `json:"line_numbers"`
+			Query           string `json:"query"`
+			Path            string `json:"path"`
+			Regex           bool   `json:"regex"`
+			LineNumbers     *bool  `json:"line_numbers"`
+			CaseInsensitive bool   `json:"case_insensitive"`
 		}
 		if err := json.Unmarshal([]byte(arguments), &args); err != nil {
 			return "", fmt.Errorf("invalid arguments: %w", err)
@@ -118,7 +119,11 @@ func (g *Grep) GetAction() ToolAction {
 		// Compile regex if needed.
 		var re *regexp.Regexp
 		if args.Regex {
-			re, err = regexp.Compile(args.Query)
+			pattern := args.Query
+			if args.CaseInsensitive {
+				pattern = "(?i:" + pattern + ")"
+			}
+			re, err = regexp.Compile(pattern)
 			if err != nil {
 				return "", fmt.Errorf("invalid regex: %w", err)
 			}
@@ -168,7 +173,7 @@ func (g *Grep) GetAction() ToolAction {
 				return nil
 			}
 
-			matches, err := searchFile(ctx, path, cleanWorkingDir, args.Query, re, lineNumbers)
+			matches, err := searchFile(ctx, path, cleanWorkingDir, args.Query, re, lineNumbers, args.CaseInsensitive)
 			if err != nil {
 				return nil // skip files we can't read
 			}
@@ -198,7 +203,7 @@ func (g *Grep) GetAction() ToolAction {
 }
 
 // searchFile searches a single file for the query and returns matching lines.
-func searchFile(ctx context.Context, path, workingDir, query string, re *regexp.Regexp, lineNumbers bool) ([]string, error) {
+func searchFile(ctx context.Context, path, workingDir, query string, re *regexp.Regexp, lineNumbers bool, caseInsensitive bool) ([]string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -252,6 +257,8 @@ func searchFile(ctx context.Context, path, workingDir, query string, re *regexp.
 		found := false
 		if re != nil {
 			found = re.Match(text)
+		} else if caseInsensitive {
+			found = strings.Contains(strings.ToLower(string(text)), strings.ToLower(query))
 		} else {
 			found = bytes.Contains(text, []byte(query))
 		}
