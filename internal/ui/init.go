@@ -80,6 +80,7 @@ func InitialMainViewModel(cfg config.Config) MainViewModel {
 	r.Register(&tools.WriteFile{WorkingDir: wd})
 	r.Register(&tools.ReplaceText{WorkingDir: wd})
 	r.Register(&tools.ExecCommand{WorkingDir: wd, Timeout: time.Duration(cfg.Tools.ExecCommand.TimeoutSeconds) * time.Second})
+	r.Register(&tools.Grep{WorkingDir: wd})
 
 	return MainViewModel{
 		textInput:     ti,

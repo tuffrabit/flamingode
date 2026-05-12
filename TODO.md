@@ -1,5 +1,4 @@
 - uuid named chat sessions that are stored and can be resumed
-- grep tool
 - permissions
 - include file or dir listing with '@'
 - default system prompt with project level preference
@@ -10,3 +9,5 @@
 - mcp's
 - read before write
 - api response debug logging actually capture body
+- readme
+- config example
