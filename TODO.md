@@ -10,5 +10,4 @@
 - help/hints
 - mcp's
 - read before write
-- weird bug with tool call lines flickering
 - api response debug logging actually capture body
