@@ -16,6 +16,27 @@ import (
 // MaxGrepOutputSize is the maximum number of result bytes to return.
 const MaxGrepOutputSize = 100_000
 
+// MaxGrepFileSize is the largest file we will scan (10 MB).
+const MaxGrepFileSize = 10 * 1024 * 1024
+
+// Default scanner buffer size for long lines (1 MB).
+const grepScanBuffer = 1024 * 1024
+
+// skipDirs are directories we never descend into.
+var skipDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+	"vendor":       true,
+	"__pycache__":  true,
+	".venv":        true,
+	"venv":         true,
+	"target":       true,
+	"dist":         true,
+	"build":        true,
+	".idea":        true,
+	".vscode":      true,
+}
+
 // Grep searches for a pattern in files within the working directory.
 type Grep struct {
 	WorkingDir string
@@ -26,7 +47,7 @@ func (g *Grep) GetName() string {
 }
 
 func (g *Grep) GetDescription() string {
-	return "Search for a pattern in files within the working directory. Returns matching lines with file paths and optional line numbers. Skips binary files. Supports literal text or regex search."
+	return "Search for a pattern in files within the working directory. Returns matching lines with file paths and optional line numbers. Skips binary files and common dependency/build directories. Supports literal text or regex search."
 }
 
 func (g *Grep) GetParameters() map[string]interface{} {
@@ -112,14 +133,24 @@ func (g *Grep) GetAction() ToolAction {
 
 		// Walk the directory tree and search files.
 		err = filepath.WalkDir(cleanPath, func(path string, d os.DirEntry, err error) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			if err != nil {
 				return nil // skip files we can't access
 			}
 			if d.IsDir() {
+				if skipDirs[d.Name()] {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			// Only open regular files — skip symlinks, FIFOs, sockets, devices.
+			if !d.Type().IsRegular() {
 				return nil
 			}
 
-			matches, err := searchFile(path, cleanWorkingDir, args.Query, re, lineNumbers)
+			matches, err := searchFile(ctx, path, cleanWorkingDir, args.Query, re, lineNumbers)
 			if err != nil {
 				return nil // skip files we can't read
 			}
@@ -144,26 +175,28 @@ func (g *Grep) GetAction() ToolAction {
 		if result.Len() == 0 {
 			return "No matches found.", nil
 		}
-
 		return fmt.Sprintf("(%d matches)\n%s", totalMatches, result.String()), nil
 	}
 }
 
 // searchFile searches a single file for the query and returns matching lines.
-func searchFile(path, workingDir, query string, re *regexp.Regexp, lineNumbers bool) ([]string, error) {
+func searchFile(ctx context.Context, path, workingDir, query string, re *regexp.Regexp, lineNumbers bool) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, nil
+	}
+	if info.Size() > MaxGrepFileSize {
+		return nil, nil // skip huge files
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-
-	info, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if info.IsDir() {
-		return nil, nil
-	}
 
 	// Quick check: skip binary/non-UTF8 files by sampling the first 8KB.
 	sample := make([]byte, 8192)
@@ -188,10 +221,15 @@ func searchFile(path, workingDir, query string, re *regexp.Regexp, lineNumbers b
 	}
 
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, grepScanBuffer), grepScanBuffer)
+
 	lineNum := 1
 	var matches []string
 
 	for scanner.Scan() {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		text := scanner.Bytes()
 		found := false
 		if re != nil {

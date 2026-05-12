@@ -151,3 +151,71 @@ func TestGrep_DefaultsToWorkingDir(t *testing.T) {
 		t.Fatalf("expected match, got: %q", result)
 	}
 }
+
+func TestGrep_SkipsIgnoredDirs(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, "node_modules", "pkg.js"), []byte("findme\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "src.js"), []byte("findme\n"), 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(result, "node_modules") {
+		t.Fatalf("expected node_modules to be skipped, got: %q", result)
+	}
+	if !strings.Contains(result, "src.js") {
+		t.Fatalf("expected src.js match, got: %q", result)
+	}
+}
+
+func TestGrep_SkipsSymlinks(t *testing.T) {
+	tmpDir := t.TempDir()
+	realFile := filepath.Join(tmpDir, "real.txt")
+	_ = os.WriteFile(realFile, []byte("findme\n"), 0644)
+	_ = os.Symlink(realFile, filepath.Join(tmpDir, "link.txt"))
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"."}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Symlinks are skipped, so only real.txt should match.
+	lines := strings.Count(result, "findme")
+	if lines != 1 {
+		t.Fatalf("expected 1 match, got %d: %q", lines, result)
+	}
+}
+
+func TestGrep_SkipsHugeFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create a file slightly larger than MaxGrepFileSize.
+	huge := make([]byte, MaxGrepFileSize+1)
+	copy(huge, []byte("findme\n"))
+	_ = os.WriteFile(filepath.Join(tmpDir, "huge.log"), huge, 0644)
+
+	tool := &Grep{WorkingDir: tmpDir}
+	result, err := tool.GetAction()(context.Background(), `{"query":"findme","path":"huge.log"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "No matches found." {
+		t.Fatalf("expected no matches for huge file, got: %q", result)
+	}
+}
+
+func TestGrep_ContextCancellation(t *testing.T) {
+	tmpDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(tmpDir, "a.txt"), []byte("findme\n"), 0644)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	tool := &Grep{WorkingDir: tmpDir}
+	_, err := tool.GetAction()(ctx, `{"query":"findme","path":"."}`)
+	if err == nil {
+		t.Fatal("expected error for cancelled context, got nil")
+	}
+}

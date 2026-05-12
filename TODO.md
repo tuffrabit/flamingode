@@ -11,3 +11,5 @@
 - api response debug logging actually capture body
 - readme
 - config example
+- api timeout
+- grep skip based on gitignore

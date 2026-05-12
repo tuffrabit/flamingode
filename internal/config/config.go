@@ -9,11 +9,12 @@ import (
 
 // Config is the top-level application configuration.
 type Config struct {
-	Providers    map[string]Provider `json:"providers"`
-	DefaultModel string              `json:"defaultModel,omitempty"`
-	Tools        ToolsConfig         `json:"tools,omitempty"`
-	Debug        bool                `json:"-"`
-	DebugLogPath string              `json:"-"`
+	Providers         map[string]Provider `json:"providers"`
+	DefaultModel      string              `json:"defaultModel,omitempty"`
+	APITimeoutSeconds int                 `json:"apiTimeoutSeconds,omitempty"`
+	Tools             ToolsConfig         `json:"tools,omitempty"`
+	Debug             bool                `json:"-"`
+	DebugLogPath      string              `json:"-"`
 }
 
 // ToolsConfig holds configuration for individual tools.
@@ -71,7 +72,8 @@ func configPath() (string, error) {
 // defaultConfig returns a Config populated with sensible defaults.
 func defaultConfig() Config {
 	return Config{
-		Providers: map[string]Provider{},
+		Providers:         map[string]Provider{},
+		APITimeoutSeconds: 600,
 		Tools: ToolsConfig{
 			ReadFile: ReadFileToolConfig{
 				MaxSize: 100000,
@@ -131,6 +133,10 @@ func Load() (Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{}, fmt.Errorf("unable to parse config file: %w", err)
+	}
+
+	if cfg.APITimeoutSeconds == 0 {
+		cfg.APITimeoutSeconds = 600
 	}
 
 	return cfg, nil

@@ -24,6 +24,9 @@ func TestLoadCreatesDefaultWhenMissing(t *testing.T) {
 	if cfg.Tools.ReadFile.MaxSize != 100000 {
 		t.Fatalf("expected default read_file max_size of 100000, got %d", cfg.Tools.ReadFile.MaxSize)
 	}
+	if cfg.APITimeoutSeconds != 600 {
+		t.Fatalf("expected default apiTimeoutSeconds of 600, got %d", cfg.APITimeoutSeconds)
+	}
 
 	path := filepath.Join(tmpDir, ".flamingode", "config.json")
 	if _, err := os.Stat(path); os.IsNotExist(err) {

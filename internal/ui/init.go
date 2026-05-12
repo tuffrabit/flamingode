@@ -43,6 +43,7 @@ func resolveModel(cfg config.Config) (*apiclient.Client, string, int, string) {
 	}
 
 	client := apiclient.NewWithBaseURL(provider.APIKey, provider.BaseURL)
+	client.SetTimeout(time.Duration(cfg.APITimeoutSeconds) * time.Second)
 	if cfg.Debug {
 		_ = client.SetDebug(true, cfg.DebugLogPath)
 	}

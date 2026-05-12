@@ -41,11 +41,7 @@ func NewWithBaseURL(apiKey, baseURL string) *Client {
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		apiKey:  apiKey,
 		httpClient: &http.Client{
-			// No Timeout here — it would cap the entire streaming response.
-			// Use context deadlines on individual requests instead.
-			Transport: &http.Transport{
-				ResponseHeaderTimeout: 60 * time.Second,
-			},
+			Transport: &http.Transport{},
 		},
 	}
 }
@@ -53,6 +49,17 @@ func NewWithBaseURL(apiKey, baseURL string) *Client {
 // SetHTTPClient replaces the default HTTP client.
 func (c *Client) SetHTTPClient(client *http.Client) {
 	c.httpClient = client
+}
+
+// SetTimeout sets the overall request timeout on the HTTP client.
+// This caps the total time for a request, including reading the response body.
+// It also updates the transport's ResponseHeaderTimeout so the server has the
+// full timeout window to begin sending headers.
+func (c *Client) SetTimeout(timeout time.Duration) {
+	c.httpClient.Timeout = timeout
+	if transport, ok := c.httpClient.Transport.(*http.Transport); ok {
+		transport.ResponseHeaderTimeout = timeout
+	}
 }
 
 // SetDebug enables or disables debug logging. When enabled, request and
