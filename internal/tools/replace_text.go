@@ -24,7 +24,7 @@ func (r *ReplaceText) GetDescription() string {
 }
 
 func (r *ReplaceText) GetPermissionRequired() bool {
-	return false
+	return true
 }
 
 func (r *ReplaceText) GetParameters() map[string]interface{} {
