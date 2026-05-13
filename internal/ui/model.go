@@ -157,8 +157,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textInput.SetWidth(msg.Width)
 
 		headerHeight := lipgloss.Height(m.headerView())
-		textInputHeight := lipgloss.Height(m.textInput.View())
-		verticalMarginHeight := headerHeight + textInputHeight
+		var bottomHeight int
+		if m.permissionPrompt != nil {
+			bottomHeight = lipgloss.Height(m.permissionPrompt.View())
+		} else {
+			bottomHeight = lipgloss.Height(m.textInput.View())
+		}
+		verticalMarginHeight := headerHeight + bottomHeight
 
 		if !m.ready {
 			m.viewport = viewport.New(
@@ -268,8 +273,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.ready {
 		headerHeight := lipgloss.Height(m.headerView())
-		textInputHeight := lipgloss.Height(m.textInput.View())
-		verticalMarginHeight := headerHeight + textInputHeight
+		var bottomHeight int
+		if m.permissionPrompt != nil {
+			bottomHeight = lipgloss.Height(m.permissionPrompt.View())
+		} else {
+			bottomHeight = lipgloss.Height(m.textInput.View())
+		}
+		verticalMarginHeight := headerHeight + bottomHeight
 		newViewportHeight := m.windowHeight - verticalMarginHeight
 		if newViewportHeight > 0 && newViewportHeight != m.viewport.Height() {
 			wasAtBottom := m.viewport.AtBottom()

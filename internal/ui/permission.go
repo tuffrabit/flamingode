@@ -68,7 +68,7 @@ func NewPermissionPrompt(toolCall apiclient.ToolCall) *PermissionPrompt {
 		permissionItem("No"),
 	}
 
-	l := list.New(items, permissionDelegate{}, 40, 4)
+	l := list.New(items, permissionDelegate{}, 40, 6)
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -120,11 +120,22 @@ func (p *PermissionPrompt) View() string {
 	b.WriteString(toolStyle.Render(p.toolCall.Function.Name))
 	b.WriteString("\n\n")
 
+	b.WriteString(p.list.View())
+	b.WriteString("\n")
+
 	argsStr := formatArguments(p.toolCall.Function.Arguments)
+	argsStr = truncateLines(argsStr, 8)
 	argsStyle := lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#888"))
 	b.WriteString(argsStyle.Render(argsStr))
-	b.WriteString("\n\n")
-	b.WriteString(p.list.View())
 
 	return b.String()
+}
+
+func truncateLines(s string, maxLines int) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) <= maxLines {
+		return s
+	}
+	lines = lines[:maxLines]
+	return strings.Join(lines, "\n") + "\n..."
 }
