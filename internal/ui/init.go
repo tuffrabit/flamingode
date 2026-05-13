@@ -111,6 +111,7 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 	r.Register(&tools.ReplaceText{WorkingDir: wd})
 	r.Register(&tools.ExecCommand{WorkingDir: wd, Timeout: time.Duration(cfg.Tools.ExecCommand.TimeoutSeconds) * time.Second})
 	r.Register(&tools.Grep{WorkingDir: wd})
+	r.Register(&tools.Glob{WorkingDir: wd})
 
 	hist, _ := history.Load()
 

@@ -1,4 +1,6 @@
 - include file or dir listing with '@'
+- readme
+- config example
 - default system prompt with project level preference
 - cli args: model
 - more slash commands
@@ -6,7 +8,5 @@
 - mcp's
 - read before write
 - api response debug logging actually capture body
-- readme
-- config example
-- glob tool (filename search)
 - treesitter or lsp support
+- file write diff
