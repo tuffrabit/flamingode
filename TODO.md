@@ -1,6 +1,6 @@
-- default system prompt with project level preference
-- cli args: model
-- more slash commands
+- scrolling is broke
+- cli args: model, headless
+- more slash commands: model, sessions
 - help/fuzzy hints
 - mcp's
 - read before write

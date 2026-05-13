@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -56,6 +57,25 @@ func resolveModel(cfg config.Config) (*apiclient.Client, string, int, string) {
 	return resolveModelByID(cfg, cfg.DefaultModel)
 }
 
+const defaultSystemPrompt = "You are a helpful agent"
+
+func resolveSystemPrompt(workingDir string) string {
+	projectPath := filepath.Join(workingDir, ".flamingode", "system_prompt.md")
+	if data, err := os.ReadFile(projectPath); err == nil {
+		return string(data)
+	}
+
+	home, err := os.UserHomeDir()
+	if err == nil {
+		globalPath := filepath.Join(home, ".flamingode", "system_prompt.md")
+		if data, err := os.ReadFile(globalPath); err == nil {
+			return string(data)
+		}
+	}
+
+	return defaultSystemPrompt
+}
+
 func InitialMainViewModel(cfg config.Config, sess *session.Session, events []session.Event) MainViewModel {
 	ti := textarea.New()
 	ti.Placeholder = "Type a message..."
@@ -92,8 +112,9 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 			messages = append(messages, evt.ToMessage())
 		}
 	} else {
+		systemPrompt := resolveSystemPrompt(wd)
 		messages = []apiclient.ChatCompletionMessage{
-			apiclient.NewTextMessage("system", "You are a helpful agent"),
+			apiclient.NewTextMessage("system", systemPrompt),
 		}
 		if sess != nil {
 			_ = sess.AppendEvent(session.EventFromMessage(messages[0]))
@@ -123,6 +144,7 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 		contextWindow: contextWindow,
 		status:        status,
 		workingDir:    wd,
+		systemPrompt:  resolveSystemPrompt(wd),
 		messages:      messages,
 		spinner:       s,
 		toolRegistry:  r,

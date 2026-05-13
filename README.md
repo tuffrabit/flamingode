@@ -133,6 +133,15 @@ On first run, Flamingode creates `~/.flamingode/config.json` with sensible defau
 | `tools.read_file.max_size` | integer | `100000` | Maximum file size in bytes for the `read_file` tool. |
 | `tools.exec_command.timeout_seconds` | integer | `0` | Timeout for shell command execution (`0` = no timeout). |
 
+### System prompt
+
+You can override the default system prompt (`"You are a helpful agent"`) by creating a `system_prompt.md` file in one of these locations:
+
+1. **Project-level** — `<working-directory>/.flamingode/system_prompt.md`
+2. **Global** — `~/.flamingode/system_prompt.md`
+
+On startup, Flamingode checks for the project-level file first. If it exists, its contents are used as the system prompt. If not, it falls back to the global file. If neither exists, the hard-coded default is used. The prompt is also re-used when running `/clear`.
+
 ---
 
 ## Usage

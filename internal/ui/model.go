@@ -43,6 +43,7 @@ type MainViewModel struct {
 	historyIndex        int
 	historyDraft        string
 	historyMaxLen       int
+	systemPrompt        string
 
 	// Permission prompt state
 	permissionPrompt *PermissionPrompt
@@ -113,7 +114,7 @@ func (m *MainViewModel) handleSlashCommand(input string) bool {
 		m.sessionUsage = apiclient.Usage{}
 		m.streamUsageRecorded = false
 		m.messages = []apiclient.ChatCompletionMessage{
-			apiclient.NewTextMessage("system", "You are a helpful agent"),
+			apiclient.NewTextMessage("system", m.systemPrompt),
 		}
 		_ = m.session.AppendEvent(session.EventFromMessage(m.messages[0]))
 		m.pending = ""
