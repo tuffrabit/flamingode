@@ -1,4 +1,3 @@
-- include file or dir listing with '@'
 - readme
 - config example
 - default system prompt with project level preference
@@ -10,3 +9,4 @@
 - api response debug logging actually capture body
 - treesitter or lsp support
 - file write diff
+- skills

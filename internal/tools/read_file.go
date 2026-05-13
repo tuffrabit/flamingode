@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 )
@@ -58,6 +57,49 @@ func (r *ReadFile) GetParameters() map[string]interface{} {
 	}
 }
 
+// ReadFileContent reads a text file within the working directory and returns its
+// contents, a bool indicating whether the read was truncated, and any error.
+func ReadFileContent(workingDir, relPath string, maxSize int64) (string, bool, error) {
+	cleanPath, err := ResolveWorkingDirPath(workingDir, relPath)
+	if err != nil {
+		return "", false, err
+	}
+
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to stat file: %w", err)
+	}
+	if info.IsDir() {
+		return "", false, fmt.Errorf("path is a directory, not a file")
+	}
+
+	if maxSize <= 0 {
+		maxSize = DefaultMaxFileSize
+	}
+
+	file, err := os.Open(cleanPath)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	wasTruncated := info.Size() > maxSize
+	b, err := io.ReadAll(io.LimitReader(file, maxSize))
+	if err != nil {
+		return "", false, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	if wasTruncated {
+		b = fixTruncatedUTF8(b)
+	}
+
+	if !utf8.ValidString(string(b)) {
+		return "", false, fmt.Errorf("file appears to be binary or contains invalid UTF-8")
+	}
+
+	return string(b), wasTruncated, nil
+}
+
 func (r *ReadFile) GetAction() ToolAction {
 	return func(ctx context.Context, arguments string) (string, error) {
 		var args struct {
@@ -73,70 +115,20 @@ func (r *ReadFile) GetAction() ToolAction {
 			return "", fmt.Errorf("path is required")
 		}
 
-		// Resolve to an absolute path within the working directory.
-		absPath, err := filepath.Abs(filepath.Join(r.WorkingDir, args.Path))
+		content, wasTruncated, err := ReadFileContent(r.WorkingDir, args.Path, r.MaxSize)
 		if err != nil {
-			return "", fmt.Errorf("invalid path: %w", err)
+			return "", err
 		}
 
-		// Resolve any symlinks in the path.
-		resolvedPath, err := filepath.EvalSymlinks(absPath)
-		if err != nil {
-			return "", fmt.Errorf("cannot access path: %w", err)
-		}
-
-		cleanPath := filepath.Clean(resolvedPath)
-		cleanWorkingDir := filepath.Clean(r.WorkingDir)
-
-		// Restrict access to the working directory tree.
-		if cleanPath != cleanWorkingDir && !strings.HasPrefix(cleanPath, cleanWorkingDir+string(filepath.Separator)) {
-			return "", fmt.Errorf("access denied: path is outside the working directory")
-		}
-
-		// Verify the path is a file, not a directory.
-		info, err := os.Stat(cleanPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to stat file: %w", err)
-		}
-		if info.IsDir() {
-			return "", fmt.Errorf("path is a directory, not a file")
-		}
-
-		// Determine effective max size.
-		maxSize := r.MaxSize
-		if maxSize <= 0 {
-			maxSize = DefaultMaxFileSize
-		}
-
-		// Open and read up to maxSize bytes.
-		file, err := os.Open(cleanPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to open file: %w", err)
-		}
-		defer file.Close()
-
-		wasTruncated := info.Size() > maxSize
-		b, err := io.ReadAll(io.LimitReader(file, maxSize))
-		if err != nil {
-			return "", fmt.Errorf("failed to read file: %w", err)
-		}
-
-		// If truncated, strip any incomplete UTF-8 sequence at the end.
-		if wasTruncated {
-			b = fixTruncatedUTF8(b)
-		}
-
-		// Reject binary or non-UTF-8 files.
-		if !utf8.ValidString(string(b)) {
-			return "", fmt.Errorf("file appears to be binary or contains invalid UTF-8")
-		}
-
-		// Apply line offset and limit.
 		if args.LineOffset < 1 {
 			args.LineOffset = 1
 		}
 
-		scanner := bufio.NewScanner(strings.NewReader(string(b)))
+		scanner := bufio.NewScanner(strings.NewReader(content))
+		maxSize := r.MaxSize
+		if maxSize <= 0 {
+			maxSize = DefaultMaxFileSize
+		}
 		scanner.Buffer(make([]byte, 1024), int(maxSize)+1024)
 
 		currentLine := 1

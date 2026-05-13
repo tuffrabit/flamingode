@@ -210,7 +210,8 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.GotoBottom()
 				break
 			}
-			userMsg := apiclient.NewTextMessage("user", input)
+			resolvedInput := m.resolveInputWithMentions(input)
+			userMsg := apiclient.NewTextMessage("user", resolvedInput)
 			m.messages = append(m.messages, userMsg)
 			m.persistMessage(userMsg)
 			m.pending = ""
@@ -465,6 +466,33 @@ func (m *MainViewModel) handlePermissionChoice(approved bool, tc apiclient.ToolC
 	m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
 	m.persistMessage(tools.NewToolResultMessage(tc.ID, result))
 	return m.processToolCallQueue()
+}
+
+func (m *MainViewModel) resolveInputWithMentions(input string) string {
+	var toolMaxSize int64
+	if t, ok := m.toolRegistry.Get("read_file"); ok {
+		if rf, ok := t.(*tools.ReadFile); ok {
+			toolMaxSize = rf.MaxSize
+		}
+	}
+
+	var maxFileSize int64
+	if m.contextWindow > 0 {
+		remainingTokens := int(float64(m.contextWindow)*0.75) - estimateTokens(m.messages)
+		if remainingTokens <= 0 {
+			return resolveAtMentions(input, m.workingDir, -1)
+		}
+		safeBytes := int64(remainingTokens * 4)
+		if safeBytes > 0 && (toolMaxSize == 0 || safeBytes < toolMaxSize) {
+			maxFileSize = safeBytes
+		} else {
+			maxFileSize = toolMaxSize
+		}
+	} else {
+		maxFileSize = toolMaxSize
+	}
+
+	return resolveAtMentions(input, m.workingDir, maxFileSize)
 }
 
 func (m MainViewModel) View() tea.View {
