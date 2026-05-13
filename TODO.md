@@ -1,4 +1,3 @@
-- scrolling is broke
 - cli args: model, headless
 - more slash commands: model, sessions
 - help/fuzzy hints

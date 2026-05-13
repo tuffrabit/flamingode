@@ -523,6 +523,7 @@ func (m MainViewModel) View() tea.View {
 
 	v := tea.NewView(content)
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 	v.Cursor = c
 	return v
 }
