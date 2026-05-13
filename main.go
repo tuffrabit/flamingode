@@ -16,6 +16,7 @@ import (
 func main() {
 	debug := flag.Bool("d", false, "enable debug logging for LLM API requests and responses")
 	resume := flag.String("resume", "", "resume an existing session by UUID")
+	modelFlag := flag.String("model", "", "model to use in the form provider/model")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -46,7 +47,15 @@ func main() {
 			log.Fatalf("Failed to load session %s, error: %v\n", *resume, err)
 		}
 	} else {
-		sess, err = session.NewSession(cfg.DefaultModel)
+		modelID := cfg.DefaultModel
+		if *modelFlag != "" {
+			if _, _, _, status := ui.ResolveModelByID(cfg, *modelFlag); status != "no model selected" {
+				modelID = *modelFlag
+			} else {
+				log.Printf("Invalid --model value %q, falling back to default model %q\n", *modelFlag, cfg.DefaultModel)
+			}
+		}
+		sess, err = session.NewSession(modelID)
 		if err != nil {
 			log.Fatalln("Failed to create session, error:", err)
 		}

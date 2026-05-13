@@ -16,7 +16,7 @@ import (
 	"github.com/tuffrabit/flamingode/internal/tools"
 )
 
-func resolveModelByID(cfg config.Config, modelID string) (*apiclient.Client, string, int, string) {
+func ResolveModelByID(cfg config.Config, modelID string) (*apiclient.Client, string, int, string) {
 	if modelID == "" {
 		return nil, "", 0, "no model selected"
 	}
@@ -54,7 +54,7 @@ func resolveModelByID(cfg config.Config, modelID string) (*apiclient.Client, str
 }
 
 func resolveModel(cfg config.Config) (*apiclient.Client, string, int, string) {
-	return resolveModelByID(cfg, cfg.DefaultModel)
+	return ResolveModelByID(cfg, cfg.DefaultModel)
 }
 
 const defaultSystemPrompt = "You are a helpful agent"
@@ -94,7 +94,7 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 		modelID = sess.Header.ModelID
 	}
 
-	client, resolvedModelID, contextWindow, status := resolveModelByID(cfg, modelID)
+	client, resolvedModelID, contextWindow, status := ResolveModelByID(cfg, modelID)
 
 	wd, _ := os.Getwd()
 

@@ -1,9 +1,9 @@
-- cli args: model, headless
+- cli args: headless
 - more slash commands: model, sessions
+- treesitter or lsp support
 - help/fuzzy hints
-- mcp's
 - read before write
 - api response debug logging actually capture body
-- treesitter or lsp support
 - file write diff
+- mcp's
 - skills
