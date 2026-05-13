@@ -51,6 +51,10 @@ func (g *Grep) GetDescription() string {
 	return "Search for a pattern in files within the working directory. Returns matching lines with file paths and optional line numbers. Skips binary files, respects .gitignore patterns, and ignores common dependency/build directories. Supports literal text or regex search."
 }
 
+func (g *Grep) GetPermissionRequired() bool {
+	return false
+}
+
 func (g *Grep) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

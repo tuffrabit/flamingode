@@ -33,6 +33,10 @@ func (r *ReadFile) GetDescription() string {
 	return fmt.Sprintf("Read the contents of a text file within the working directory. Returns the file content as a string. Files larger than %d bytes are truncated. Rejects binary files. Supports reading a specific line range via line_offset (1-indexed) and limit.", maxSize)
 }
 
+func (r *ReadFile) GetPermissionRequired() bool {
+	return false
+}
+
 func (r *ReadFile) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

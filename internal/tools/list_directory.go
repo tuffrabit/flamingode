@@ -23,6 +23,10 @@ func (l *ListDirectory) GetDescription() string {
 	return "List the contents of a directory. Returns a JSON array of objects with name, type (file or directory), and size (for files). The path must be relative to the working directory; use '.' for the current directory."
 }
 
+func (l *ListDirectory) GetPermissionRequired() bool {
+	return false
+}
+
 func (l *ListDirectory) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

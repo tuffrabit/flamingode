@@ -1,4 +1,3 @@
-- permissions
 - include file or dir listing with '@'
 - default system prompt with project level preference
 - cli args: model

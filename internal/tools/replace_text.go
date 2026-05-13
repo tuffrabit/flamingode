@@ -23,6 +23,10 @@ func (r *ReplaceText) GetDescription() string {
 	return "Replace text in a file within the working directory. Returns the total number of bytes in the rewritten file. Rejects binary files. Replaces all occurrences if replace_all is true, otherwise replaces only the first occurrence."
 }
 
+func (r *ReplaceText) GetPermissionRequired() bool {
+	return false
+}
+
 func (r *ReplaceText) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

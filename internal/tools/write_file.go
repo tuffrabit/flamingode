@@ -22,6 +22,10 @@ func (w *WriteFile) GetDescription() string {
 	return "Write contents to a file within the working directory. Overwrites existing files. Creates missing parent directories. Returns the number of bytes written."
 }
 
+func (w *WriteFile) GetPermissionRequired() bool {
+	return true
+}
+
 func (w *WriteFile) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

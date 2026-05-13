@@ -29,6 +29,10 @@ func (e *ExecCommand) GetDescription() string {
 	return "Run a command with arguments in the working directory. Returns stdout, stderr, and exit status. Commands are executed directly (no shell), so pipes, redirections, and variable expansion are not supported."
 }
 
+func (e *ExecCommand) GetPermissionRequired() bool {
+	return true
+}
+
 func (e *ExecCommand) GetParameters() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",

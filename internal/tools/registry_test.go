@@ -21,6 +21,7 @@ func (m *mockTool) GetName() string                      { return m.name }
 func (m *mockTool) GetDescription() string                { return m.description }
 func (m *mockTool) GetParameters() map[string]interface{} { return m.parameters }
 func (m *mockTool) GetAction() ToolAction                 { return m.action }
+func (m *mockTool) GetPermissionRequired() bool           { return false }
 
 func TestRegistry_RegisterAndGet(t *testing.T) {
 	r := NewRegistry()

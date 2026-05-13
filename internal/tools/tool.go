@@ -33,4 +33,8 @@ type Tool interface {
 
 	// GetAction returns the function that actually performs the tool's work.
 	GetAction() ToolAction
+
+	// GetPermissionRequired returns true if the user must explicitly approve
+	// this tool before it is executed.
+	GetPermissionRequired() bool
 }

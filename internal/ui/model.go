@@ -37,6 +37,10 @@ type MainViewModel struct {
 	streamUsageRecorded bool
 	session             *session.Session
 	sessionID           string
+
+	// Permission prompt state
+	permissionPrompt *PermissionPrompt
+	queuedToolCalls  []apiclient.ToolCall
 }
 
 func estimateTokens(msgs []apiclient.ChatCompletionMessage) int {
@@ -95,6 +99,30 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
+
+	// Permission prompt takes precedence over normal UI.
+	if m.permissionPrompt != nil {
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == "ctrl+d" {
+			return m, tea.Quit
+		}
+
+		var pCmd tea.Cmd
+		m.permissionPrompt, pCmd = m.permissionPrompt.Update(msg)
+		cmds = append(cmds, pCmd)
+
+		if m.permissionPrompt != nil && m.permissionPrompt.done {
+			choice := m.permissionPrompt.approved
+			tc := m.permissionPrompt.toolCall
+			m.permissionPrompt = nil
+			cmds = append(cmds, m.handlePermissionChoice(choice, tc))
+		}
+
+		// Still allow viewport scrolling while the prompt is shown.
+		m.viewport, cmd = m.viewport.Update(msg)
+		cmds = append(cmds, cmd)
+
+		return m, tea.Batch(cmds...)
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -183,63 +211,15 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.messages = append(m.messages, assistantMsg)
 				m.persistMessage(assistantMsg)
-				for _, tc := range m.pendingToolCalls {
-					remainingTokens := 0
-					if m.contextWindow > 0 {
-						// Cap at 75% of context window to leave headroom for the model's
-						// response and estimation error. Also subtract rough tool schema overhead.
-						toolOverhead := len(m.toolRegistry.List()) * 200
-						remainingTokens = int(float64(m.contextWindow)*0.75) - estimateTokens(m.messages) - toolOverhead
-					}
 
-					var result string
-					if m.contextWindow > 0 && remainingTokens <= 0 {
-						result = "[Result omitted: context window exhausted. Consider requesting a smaller range or summarizing.]"
-					} else {
-						var origMaxSize int64
-						if t, ok := m.toolRegistry.Get("read_file"); ok {
-							if rf, ok := t.(*tools.ReadFile); ok && m.contextWindow > 0 {
-								origMaxSize = rf.MaxSize
-								safeBytes := int64(remainingTokens * 4)
-								if safeBytes > 0 && (safeBytes < rf.MaxSize || rf.MaxSize == 0) {
-									rf.MaxSize = safeBytes
-								}
-							}
-						}
-
-						var err error
-						result, err = m.toolRegistry.ExecuteToolCall(context.Background(), tc)
-						if err != nil {
-							result = fmt.Sprintf("error: %v", err)
-						}
-
-						if t, ok := m.toolRegistry.Get("read_file"); ok {
-							if rf, ok := t.(*tools.ReadFile); ok {
-								rf.MaxSize = origMaxSize
-							}
-						}
-
-						if m.contextWindow > 0 {
-							resultTokens := len(result) / 4
-							if resultTokens > remainingTokens {
-								maxBytes := remainingTokens * 4
-								if maxBytes > 0 && maxBytes < len(result) {
-									result = result[:maxBytes] + fmt.Sprintf("\n[Result truncated: exceeded available context. Remaining: ~%d tokens]", remainingTokens)
-								}
-							}
-						}
-					}
-
-					toolMsg := tools.NewToolResultMessage(tc.ID, result)
-					m.messages = append(m.messages, toolMsg)
-					m.persistMessage(toolMsg)
-				}
+				m.queuedToolCalls = m.pendingToolCalls
 				m.pendingToolCalls = nil
 				m.pending = ""
 				m.pendingThinking = ""
-				m.streaming = true
-				m.streamUsageRecorded = false
-				cmds = append(cmds, m.startStream(), m.spinner.Tick)
+				m.streaming = false
+
+				cmd := m.processToolCallQueue()
+				cmds = append(cmds, cmd)
 				m.viewport.SetContent(m.renderChat())
 				m.viewport.GotoBottom()
 				break
@@ -312,9 +292,100 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *MainViewModel) executeToolCall(tc apiclient.ToolCall) string {
+	remainingTokens := 0
+	if m.contextWindow > 0 {
+		// Cap at 75% of context window to leave headroom for the model's
+		// response and estimation error. Also subtract rough tool schema overhead.
+		toolOverhead := len(m.toolRegistry.List()) * 200
+		remainingTokens = int(float64(m.contextWindow)*0.75) - estimateTokens(m.messages) - toolOverhead
+	}
+
+	if m.contextWindow > 0 && remainingTokens <= 0 {
+		return "[Result omitted: context window exhausted. Consider requesting a smaller range or summarizing.]"
+	}
+
+	var origMaxSize int64
+	if t, ok := m.toolRegistry.Get("read_file"); ok {
+		if rf, ok := t.(*tools.ReadFile); ok && m.contextWindow > 0 {
+			origMaxSize = rf.MaxSize
+			safeBytes := int64(remainingTokens * 4)
+			if safeBytes > 0 && (safeBytes < rf.MaxSize || rf.MaxSize == 0) {
+				rf.MaxSize = safeBytes
+			}
+		}
+	}
+
+	result, err := m.toolRegistry.ExecuteToolCall(context.Background(), tc)
+	if err != nil {
+		result = fmt.Sprintf("error: %v", err)
+	}
+
+	if t, ok := m.toolRegistry.Get("read_file"); ok {
+		if rf, ok := t.(*tools.ReadFile); ok {
+			rf.MaxSize = origMaxSize
+		}
+	}
+
+	if m.contextWindow > 0 {
+		resultTokens := len(result) / 4
+		if resultTokens > remainingTokens {
+			maxBytes := remainingTokens * 4
+			if maxBytes > 0 && maxBytes < len(result) {
+				result = result[:maxBytes] + fmt.Sprintf("\n[Result truncated: exceeded available context. Remaining: ~%d tokens]", remainingTokens)
+			}
+		}
+	}
+
+	return result
+}
+
+func (m *MainViewModel) processToolCallQueue() tea.Cmd {
+	for len(m.queuedToolCalls) > 0 {
+		tc := m.queuedToolCalls[0]
+		m.queuedToolCalls = m.queuedToolCalls[1:]
+
+		tool, ok := m.toolRegistry.Get(tc.Function.Name)
+		if !ok {
+			result := fmt.Sprintf("error: tool %q not found", tc.Function.Name)
+			m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
+			m.persistMessage(tools.NewToolResultMessage(tc.ID, result))
+			continue
+		}
+
+		if tool.GetPermissionRequired() {
+			m.permissionPrompt = NewPermissionPrompt(tc)
+			return nil
+		}
+
+		result := m.executeToolCall(tc)
+		m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
+		m.persistMessage(tools.NewToolResultMessage(tc.ID, result))
+	}
+
+	m.streaming = true
+	m.streamUsageRecorded = false
+	return tea.Batch(m.startStream(), m.spinner.Tick)
+}
+
+func (m *MainViewModel) handlePermissionChoice(approved bool, tc apiclient.ToolCall) tea.Cmd {
+	m.permissionPrompt = nil
+
+	var result string
+	if approved {
+		result = m.executeToolCall(tc)
+	} else {
+		result = "Permission denied. The user declined this tool call. Please find another way to accomplish the task."
+	}
+
+	m.messages = append(m.messages, tools.NewToolResultMessage(tc.ID, result))
+	m.persistMessage(tools.NewToolResultMessage(tc.ID, result))
+	return m.processToolCallQueue()
+}
+
 func (m MainViewModel) View() tea.View {
 	var c *tea.Cursor
-	if !m.textInput.VirtualCursor() {
+	if !m.textInput.VirtualCursor() && m.permissionPrompt == nil {
 		c = m.textInput.Cursor()
 		c.Y += lipgloss.Height(m.headerView()) + m.viewport.Height()
 	}
@@ -323,11 +394,17 @@ func (m MainViewModel) View() tea.View {
 	if !m.ready {
 		content = m.headerView() + "\n\n Initializing..."
 	} else {
+		var bottomSection string
+		if m.permissionPrompt != nil {
+			bottomSection = m.permissionPrompt.View()
+		} else {
+			bottomSection = m.textInput.View()
+		}
 		content = lipgloss.JoinVertical(
 			lipgloss.Top,
 			m.headerView(),
 			m.viewport.View(),
-			m.textInput.View(),
+			bottomSection,
 		)
 	}
 
