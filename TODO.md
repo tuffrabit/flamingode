@@ -2,7 +2,7 @@
 - default system prompt with project level preference
 - cli args: model
 - user input "up/down" arrow for navigating previously submitted user inputs
-- slash commands
+- more slash commands
 - help/hints
 - mcp's
 - read before write

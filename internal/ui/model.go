@@ -23,6 +23,7 @@ type MainViewModel struct {
 	windowHeight        int
 	client              *apiclient.Client
 	modelID             string
+	fullModelID         string
 	contextWindow       int
 	status              string
 	workingDir          string
@@ -94,6 +95,31 @@ func (m *MainViewModel) updateSessionUsage() {
 	_ = m.session.UpdateHeader()
 }
 
+func (m *MainViewModel) handleSlashCommand(input string) bool {
+	switch input {
+	case "/clear":
+		newSess, err := session.NewSession(m.fullModelID)
+		if err != nil {
+			m.messages = append(m.messages, apiclient.NewTextMessage("assistant", fmt.Sprintf("[error: failed to create new session: %v]", err)))
+			return true
+		}
+		m.session = newSess
+		m.sessionID = newSess.Header.SessionID
+		m.sessionUsage = apiclient.Usage{}
+		m.streamUsageRecorded = false
+		m.messages = []apiclient.ChatCompletionMessage{
+			apiclient.NewTextMessage("system", "You are a helpful agent"),
+		}
+		_ = m.session.AppendEvent(session.EventFromMessage(m.messages[0]))
+		m.pending = ""
+		m.pendingThinking = ""
+		m.pendingToolCalls = nil
+		m.queuedToolCalls = nil
+		return true
+	}
+	return false
+}
+
 func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -138,6 +164,11 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			m.textInput.SetValue("")
+			if m.handleSlashCommand(strings.TrimSpace(input)) {
+				m.viewport.SetContent(m.renderChat())
+				m.viewport.GotoBottom()
+				break
+			}
 			userMsg := apiclient.NewTextMessage("user", input)
 			m.messages = append(m.messages, userMsg)
 			m.persistMessage(userMsg)

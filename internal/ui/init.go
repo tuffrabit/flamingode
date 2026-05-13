@@ -115,6 +115,7 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 		textInput:     ti,
 		client:        client,
 		modelID:       resolvedModelID,
+		fullModelID:   modelID,
 		contextWindow: contextWindow,
 		status:        status,
 		workingDir:    wd,
