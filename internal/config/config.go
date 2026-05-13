@@ -12,6 +12,7 @@ type Config struct {
 	Providers         map[string]Provider `json:"providers"`
 	DefaultModel      string              `json:"defaultModel,omitempty"`
 	APITimeoutSeconds int                 `json:"apiTimeoutSeconds,omitempty"`
+	HistoryLength     int                 `json:"historyLength,omitempty"`
 	Tools             ToolsConfig         `json:"tools,omitempty"`
 	Debug             bool                `json:"-"`
 	DebugLogPath      string              `json:"-"`
@@ -74,6 +75,7 @@ func defaultConfig() Config {
 	return Config{
 		Providers:         map[string]Provider{},
 		APITimeoutSeconds: 600,
+		HistoryLength:     50,
 		Tools: ToolsConfig{
 			ReadFile: ReadFileToolConfig{
 				MaxSize: 100000,
@@ -137,6 +139,9 @@ func Load() (Config, error) {
 
 	if cfg.APITimeoutSeconds == 0 {
 		cfg.APITimeoutSeconds = 600
+	}
+	if cfg.HistoryLength == 0 {
+		cfg.HistoryLength = 50
 	}
 
 	return cfg, nil

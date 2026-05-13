@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
 	"github.com/tuffrabit/flamingode/internal/config"
+	"github.com/tuffrabit/flamingode/internal/history"
 	"github.com/tuffrabit/flamingode/internal/session"
 	"github.com/tuffrabit/flamingode/internal/tools"
 )
@@ -111,6 +112,8 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 	r.Register(&tools.ExecCommand{WorkingDir: wd, Timeout: time.Duration(cfg.Tools.ExecCommand.TimeoutSeconds) * time.Second})
 	r.Register(&tools.Grep{WorkingDir: wd})
 
+	hist, _ := history.Load()
+
 	return MainViewModel{
 		textInput:     ti,
 		client:        client,
@@ -125,5 +128,8 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 		session:       sess,
 		sessionID:     sessionID,
 		sessionUsage:  sessionUsage,
+		history:       hist,
+		historyIndex:  -1,
+		historyMaxLen: cfg.HistoryLength,
 	}
 }

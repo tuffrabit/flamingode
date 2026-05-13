@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/tuffrabit/flamingode/internal/apiclient"
+	"github.com/tuffrabit/flamingode/internal/history"
 	"github.com/tuffrabit/flamingode/internal/session"
 	"github.com/tuffrabit/flamingode/internal/tools"
 )
@@ -38,6 +39,10 @@ type MainViewModel struct {
 	streamUsageRecorded bool
 	session             *session.Session
 	sessionID           string
+	history             []string
+	historyIndex        int
+	historyDraft        string
+	historyMaxLen       int
 
 	// Permission prompt state
 	permissionPrompt *PermissionPrompt
@@ -122,8 +127,9 @@ func (m *MainViewModel) handleSlashCommand(input string) bool {
 
 func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
+		cmd      tea.Cmd
+		cmds     []tea.Cmd
+		consumed bool
 	)
 
 	// Permission prompt takes precedence over normal UI.
@@ -155,6 +161,34 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+d":
 			return m, tea.Quit
+		case "up":
+			consumed = true
+			if len(m.history) == 0 {
+				break
+			}
+			if m.historyIndex == -1 {
+				m.historyDraft = m.textInput.Value()
+				m.historyIndex = len(m.history) - 1
+			} else if m.historyIndex > 0 {
+				m.historyIndex--
+			} else {
+				break
+			}
+			m.textInput.SetValue(m.history[m.historyIndex])
+			m.textInput.CursorEnd()
+		case "down":
+			consumed = true
+			if m.historyIndex == -1 {
+				break
+			}
+			if m.historyIndex < len(m.history)-1 {
+				m.historyIndex++
+				m.textInput.SetValue(m.history[m.historyIndex])
+			} else {
+				m.historyIndex = -1
+				m.textInput.SetValue(m.historyDraft)
+			}
+			m.textInput.CursorEnd()
 		case "enter":
 			if m.streaming || m.client == nil {
 				break
@@ -163,6 +197,13 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if strings.TrimSpace(input) == "" {
 				break
 			}
+			_ = history.Append(input, m.historyMaxLen)
+			m.history = append(m.history, input)
+			if len(m.history) > m.historyMaxLen {
+				m.history = m.history[len(m.history)-m.historyMaxLen:]
+			}
+			m.historyIndex = -1
+			m.historyDraft = ""
 			m.textInput.SetValue("")
 			if m.handleSlashCommand(strings.TrimSpace(input)) {
 				m.viewport.SetContent(m.renderChat())
@@ -299,8 +340,10 @@ func (m MainViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.textInput, cmd = m.textInput.Update(msg)
-	cmds = append(cmds, cmd)
+	if !consumed {
+		m.textInput, cmd = m.textInput.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	if m.ready {
 		headerHeight := lipgloss.Height(m.headerView())

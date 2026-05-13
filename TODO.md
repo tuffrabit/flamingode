@@ -1,9 +1,8 @@
 - include file or dir listing with '@'
 - default system prompt with project level preference
 - cli args: model
-- user input "up/down" arrow for navigating previously submitted user inputs
 - more slash commands
-- help/hints
+- help/fuzzy hints
 - mcp's
 - read before write
 - api response debug logging actually capture body
