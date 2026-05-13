@@ -1,4 +1,3 @@
-- config example
 - default system prompt with project level preference
 - cli args: model
 - more slash commands
