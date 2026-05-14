@@ -15,6 +15,7 @@ Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lipgloss](
 - **Session persistence** — Every conversation is saved to `~/.flamingode/sessions/` and can be resumed later.
 - **Inline file mentions** — Type `@path/to/file` (or `@directory/`) in your message to automatically include file contents inline.
 - **Permission gating** — Destructive or risky actions (like `exec_command`) prompt for approval before running.
+- **Headless mode** — Run a one-shot prompt from the command line and print the response to stdout (no TUI).
 - **Command history** — Press `↑` / `↓` to recall previous messages.
 - **Debug logging** — Optional request/response logging to debug API issues.
 
@@ -160,6 +161,38 @@ flamingode -resume <session-uuid>
 
 Session files are stored in `~/.flamingode/sessions/`. The session UUID is displayed in the header while you chat.
 
+### Choose a model
+
+```bash
+flamingode -model <provider/model-id>
+```
+
+Overrides `defaultModel` from the config for this session.
+
+### Run a one-shot headless prompt
+
+```bash
+flamingode -prompt "Explain what this function does" -model ollama/llama3.1:8b
+```
+
+Runs without loading the TUI. The prompt is sent as the only user message, any tool calls are processed, and the assistant's final response is printed to stdout. A new session file is still created in `~/.flamingode/sessions/`.
+
+This is mutually exclusive with `-resume`.
+
+### Auto-approve tool calls
+
+```bash
+flamingode -yolo
+```
+
+Skips permission prompts for all tools that require approval (e.g. `exec_command`). Works in both TUI and headless mode.
+
+Combine with `-prompt` for fully non-interactive one-liners:
+
+```bash
+flamingode -prompt "Run go test ./..." -yolo
+```
+
 ### Enable debug logging
 
 ```bash
@@ -214,7 +247,7 @@ Flamingode exposes the following tools to the model:
 | `glob` | Find files matching a glob pattern | No |
 | `exec_command` | Execute a shell command | **Yes** |
 
-Commands that require permission will pause the conversation and prompt you to approve or deny before they run.
+Commands that require permission will pause the conversation and prompt you to approve or deny before they run. Use the `-yolo` flag to auto-approve all permission requests.
 
 ---
 
