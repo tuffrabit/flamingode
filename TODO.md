@@ -1,6 +1,6 @@
 - more slash commands: model, sessions
 - treesitter or lsp support
-- help/fuzzy hints
+- fuzzy hints
 - read before write
 - api response debug logging actually capture body
 - file write diff
