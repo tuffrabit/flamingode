@@ -44,6 +44,7 @@ type MainViewModel struct {
 	historyDraft        string
 	historyMaxLen       int
 	systemPrompt        string
+	yolo                bool
 
 	// Permission prompt state
 	permissionPrompt *PermissionPrompt
@@ -439,7 +440,7 @@ func (m *MainViewModel) processToolCallQueue() tea.Cmd {
 			continue
 		}
 
-		if tool.GetPermissionRequired() {
+		if tool.GetPermissionRequired() && !m.yolo {
 			m.permissionPrompt = NewPermissionPrompt(tc)
 			return nil
 		}
@@ -481,7 +482,7 @@ func (m *MainViewModel) resolveInputWithMentions(input string) string {
 	if m.contextWindow > 0 {
 		remainingTokens := int(float64(m.contextWindow)*0.75) - estimateTokens(m.messages)
 		if remainingTokens <= 0 {
-			return resolveAtMentions(input, m.workingDir, -1)
+			return ResolveAtMentions(input, m.workingDir, -1)
 		}
 		safeBytes := int64(remainingTokens * 4)
 		if safeBytes > 0 && (toolMaxSize == 0 || safeBytes < toolMaxSize) {
@@ -493,7 +494,7 @@ func (m *MainViewModel) resolveInputWithMentions(input string) string {
 		maxFileSize = toolMaxSize
 	}
 
-	return resolveAtMentions(input, m.workingDir, maxFileSize)
+	return ResolveAtMentions(input, m.workingDir, maxFileSize)
 }
 
 func (m MainViewModel) View() tea.View {

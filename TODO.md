@@ -1,4 +1,3 @@
-- cli args: headless
 - more slash commands: model, sessions
 - treesitter or lsp support
 - help/fuzzy hints

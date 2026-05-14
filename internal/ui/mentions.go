@@ -17,7 +17,7 @@ import (
 //
 // If maxFileSize is negative, every @ mention is replaced with an inline error
 // indicating the context window is exhausted.
-func resolveAtMentions(input, workingDir string, maxFileSize int64) string {
+func ResolveAtMentions(input, workingDir string, maxFileSize int64) string {
 	if !strings.Contains(input, "@") {
 		return input
 	}
@@ -46,7 +46,7 @@ func resolveAtMentions(input, workingDir string, maxFileSize int64) string {
 			if maxFileSize < 0 {
 				result.WriteString(fmt.Sprintf("<error path=\"%s\">context window exhausted, unable to include file</error>", path))
 			} else {
-				replacement, err := resolveMention(path, workingDir, maxFileSize)
+				replacement, err := ResolveMention(path, workingDir, maxFileSize)
 				if err != nil {
 					result.WriteString(fmt.Sprintf("<error path=\"%s\">%s</error>", path, err))
 				} else {
@@ -61,7 +61,7 @@ func resolveAtMentions(input, workingDir string, maxFileSize int64) string {
 	return result.String()
 }
 
-func resolveMention(path, workingDir string, maxFileSize int64) (string, error) {
+func ResolveMention(path, workingDir string, maxFileSize int64) (string, error) {
 	cleanPath, err := tools.ResolveWorkingDirPath(workingDir, path)
 	if err != nil {
 		return "", err

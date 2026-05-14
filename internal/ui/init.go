@@ -59,7 +59,7 @@ func resolveModel(cfg config.Config) (*apiclient.Client, string, int, string) {
 
 const defaultSystemPrompt = "You are a helpful agent"
 
-func resolveSystemPrompt(workingDir string) string {
+func ResolveSystemPrompt(workingDir string) string {
 	projectPath := filepath.Join(workingDir, ".flamingode", "system_prompt.md")
 	if data, err := os.ReadFile(projectPath); err == nil {
 		return string(data)
@@ -76,7 +76,7 @@ func resolveSystemPrompt(workingDir string) string {
 	return defaultSystemPrompt
 }
 
-func InitialMainViewModel(cfg config.Config, sess *session.Session, events []session.Event) MainViewModel {
+func InitialMainViewModel(cfg config.Config, sess *session.Session, events []session.Event, yolo bool) MainViewModel {
 	ti := textarea.New()
 	ti.Placeholder = "Type a message..."
 	ti.SetVirtualCursor(false)
@@ -112,7 +112,7 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 			messages = append(messages, evt.ToMessage())
 		}
 	} else {
-		systemPrompt := resolveSystemPrompt(wd)
+		systemPrompt := ResolveSystemPrompt(wd)
 		messages = []apiclient.ChatCompletionMessage{
 			apiclient.NewTextMessage("system", systemPrompt),
 		}
@@ -144,7 +144,8 @@ func InitialMainViewModel(cfg config.Config, sess *session.Session, events []ses
 		contextWindow: contextWindow,
 		status:        status,
 		workingDir:    wd,
-		systemPrompt:  resolveSystemPrompt(wd),
+		systemPrompt:  ResolveSystemPrompt(wd),
+		yolo:          yolo,
 		messages:      messages,
 		spinner:       s,
 		toolRegistry:  r,
