@@ -240,8 +240,8 @@ Flamingode exposes the following tools to the model:
 | Tool | Description | Permission required |
 |------|-------------|---------------------|
 | `read_file` | Read the contents of a file | No |
-| `write_file` | Write content to a file | No |
-| `replace_text` | Replace text within a file | No |
+| `write_file` | Write content to a file | **Yes** |
+| `replace_text` | Replace text within a file | **Yes** |
 | `list_directory` | List files in a directory | No |
 | `grep` | Search for a pattern in files | No |
 | `glob` | Find files matching a glob pattern | No |
